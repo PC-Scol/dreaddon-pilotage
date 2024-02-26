@@ -146,7 +146,8 @@ CREATE TABLE schema_pilotage.ref_domaine_formation AS
  SELECT domaine_formation.code,
     domaine_formation.libelle_court,
     domaine_formation.libelle_long
-   FROM schema_ref.domaine_formation;
+   FROM schema_ref.domaine_formation
+   WHERE code_bcn IS NOT NULL;
 
 
 
@@ -229,8 +230,34 @@ CREATE TABLE schema_pilotage.ref_type_dernier_diplome_obtenu AS
 CREATE TABLE schema_pilotage.ref_type_diplome AS
  SELECT type_diplome.code,
     type_diplome.libelle_court,
-    type_diplome.libelle_long
-   FROM schema_ref.type_diplome;
+    type_diplome.libelle_long,
+    type_diplome.libelle_affichage,
+    type_diplome.echelle_sise,
+    type_diplome.temoin_diplome_national_aglae,
+    type_diplome.temoin_diplome_habilite_aglae,
+    
+    type_diplome.id_cursus_formation,
+    RCF.code AS "cursus_formation_code",
+    RCF.code_bcn AS "cursus_formation_code_bcn",
+    RCF.libelle_court AS "cursus_formation_libelle_court",
+    RCF.libelle_long AS "cursus_formation_libelle_long",
+    
+    type_diplome.id_nature_diplome,
+    RND.code AS "nature_diplome_code",
+    RND.code_bcn AS "nature_diplome_code_bcn",
+    RND.libelle_court AS "nature_diplome_libelle_court",
+    RND.libelle_long AS "nature_diplome_libelle_long",
+    
+    type_diplome.id_niveau_formation,
+    RNF.code AS "niveau_formation_code",
+    RNF.code_bcn AS "niveau_formation_code_bcn",
+    RNF.libelle_court AS "niveau_formation_libelle_court",
+    RNF.libelle_long AS "niveau_formation_libelle_long"
+    
+   FROM schema_ref.type_diplome
+   LEFT JOIN schema_ref.cursus_formation RCF ON RCF.id = type_diplome.id_cursus_formation
+   LEFT JOIN schema_ref.nature_diplome RND ON RND.id = type_diplome.id_nature_diplome
+   LEFT JOIN schema_ref.niveau_formation RNF ON RNF.id = type_diplome.id_niveau_formation;
 
 
 
@@ -596,6 +623,29 @@ CREATE TABLE schema_pilotage.ref_mention_diplome AS
    FROM schema_ref.mention_diplome;
 
 
+
+
+CREATE TABLE schema_pilotage.ref_type_objet_formation AS
+ SELECT id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    categorie_objet
+   FROM schema_ref.type_objet_formation;
+
+
+
+
+CREATE TABLE schema_pilotage.ref_type_formation AS
+ SELECT id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage
+   FROM schema_ref.type_formation;
+
+
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.ref_xxxxxxxxxxxxxxxxx'; END; $$;
 
 
@@ -608,23 +658,28 @@ CREATE TABLE schema_pilotage.ref_mention_diplome AS
 CREATE TABLE schema_pilotage.odf_formation AS
 SELECT 
     F.id,
-	PER.code AS "code_periode",
-	PER.libelle_long AS "libelle_periode",
+	ESP.code AS "code_periode",
+	ESP.libelle_long AS "libelle_periode",
     F.code,
     F.libelle_court,
     F.libelle_long,
-    F.type_code AS "code_type",
-    F.type_libelle_court AS "libelle_type",
+	F.description,
+    F.code_type_formation AS "code_type",
+    RTF.libelle_court AS "libelle_type",
     F.code_type_diplome,
     RTD.libelle_long AS "libelle_type_diplome",
-    F.code_cursus,
-    RCF.libelle_long AS "libelle_cursus",
-    CF.code_bcn AS "cursus_formation_bcn",
-    F.code_niveau_formation,
-    RNF.libelle_long AS "libelle_niveau_formation",
-    NF.code_bcn AS "niveau_formation_bcn",
-    F.code_nature_diplome,
-    RNaD.libelle_long AS "libelle_nature_diplome",
+	F.code_diplome_sise,
+	F.niveau_diplome_sise,
+	F.code_parcours_type_sise,
+
+    RTD.cursus_formation_code AS "code_cursus",
+    RTD.cursus_formation_libelle_long AS "libelle_cursus",
+    RTD.cursus_formation_code_bcn AS "cursus_formation_bcn",
+    RTD.niveau_formation_code AS "code_niveau_formation",
+    RTD.niveau_formation_libelle_long AS "libelle_niveau_formation",
+    RTD.niveau_formation_code_bcn AS "niveau_formation_bcn",
+    RTD.nature_diplome_code AS "code_nature_diplome",
+    RTD.nature_diplome_libelle_long AS "libelle_nature_diplome",
     F.code_niveau_diplome,
     RNiD.libelle_long AS "libelle_niveau_diplome",
     F.code_champ_formation,
@@ -633,42 +688,42 @@ SELECT
     RDF.libelle_long AS "libelle_domaine_formation",
     F.code_mention,
     RMD.libelle_long AS "libelle_mention",
-    --string_agg(FRI.code_regime_inscription, '/') AS codes_regime_inscription,
-    F.nb_inscriptions_autorisees,
+    /*F.nb_inscriptions_autorisees,
     F.temoin_ouverte_a_inscription,
-    F.temoin_titre_acces_necessaire,
+    F.temoin_titre_acces_necessaire,*/
     F.temoin_tele_enseignement,
-    F.temoin_jamais_ouverte_a_inscription,
+    /*F.temoin_jamais_ouverte_a_inscription,
     F.temoin_envoyee_a_inscription,
     F.temoin_ouverte_choix_cursus,
-    F.temoin_jamais_ouverte_choix_cursus,
+    F.temoin_jamais_ouverte_choix_cursus,*/
     F.credit_ects,
-    F.code_structure_budgetaire,
+    /*F.code_structure_budgetaire,
     F.code_uai_structure_budgetaire,
     F.code_referentiel_externe_structure_budgetaire,
     F.denomination_principale_structure_budgetaire,
-    F.code_tarification,
-    M.structure_principale AS "code_structure",
+    F.code_tarification,*/
+    F.code_structure_principale AS "code_structure",
     S.code_referentiel_externe AS "code_structure_externe",
-    ESE.libelle_structure_externe_web AS "libelle_structure_externe",
-    F.date_contexte
+    ESE.libelle_structure_externe_web AS "libelle_structure_externe"/*,
+    F.date_contexte*/
 
-FROM schema_mof.formation F
-LEFT JOIN schema_mof.periode PER ON PER.id = F.id_periode
+FROM schema_odf.objet_maquette F
+LEFT JOIN schema_odf.espace ESP ON ESP.id = F.id_espace
+LEFT JOIN schema_odf.contexte CON ON CON.id_objet_maquette = F.id
 LEFT JOIN schema_pilotage.ref_type_diplome RTD ON RTD.code = F.code_type_diplome
-LEFT JOIN schema_pilotage.ref_cursus_formation RCF ON RCF.code = F.code_cursus
-LEFT JOIN schema_pilotage.ref_niveau_formation RNF ON RNF.code = F.code_niveau_formation
-LEFT JOIN schema_pilotage.ref_nature_diplome RNaD ON RNaD.code = F.code_nature_diplome
 LEFT JOIN schema_pilotage.ref_niveau_diplome RNiD ON RNiD.code_metier = F.code_niveau_diplome
 LEFT JOIN schema_pilotage.ref_champ_formation RChF ON RChF.code_metier = F.code_champ_formation
 LEFT JOIN schema_pilotage.ref_domaine_formation RDF ON RDF.code = F.code_domaine_formation
 LEFT JOIN schema_pilotage.ref_mention_diplome RMD ON RMD.code = F.code_mention
-LEFT JOIN schema_ref.cursus_formation CF ON CF.code = F.code_cursus 
-LEFT JOIN schema_mof.maquette M ON F.id_maquette = M.id
-LEFT JOIN schema_ref.structure S ON S.code = M.structure_principale
-LEFT JOIN schema_ref.niveau_formation NF ON F.code_niveau_formation = NF.code
+LEFT JOIN schema_pilotage.ref_type_formation RTF ON RTF.code = F.code_type_formation
+LEFT JOIN schema_ref.structure S ON S.code = F.code_structure_principale
 LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe
---LEFT JOIN schema_mof.formation_regime_inscription FRI ON FRI.id_formation = F.id
+
+WHERE F.type_objet_maquette = 'F'
+	AND ESP.type_espace = 'P'
+    AND CON.temoin_valide=TRUE
+	
+	--AND F.code='A3CCA-351-V1'
 ;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_formation'; END; $$;
 
@@ -677,139 +732,87 @@ LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_exter
 
 
 /* liste des régimes d'inscriptions pour formations */
-CREATE TABLE schema_pilotage.odf_formation_regime_inscription AS
+/*CREATE TABLE schema_pilotage.odf_formation_regime_inscription AS
 SELECT 
     FRI.*,
     RI.libelle_long
 
 FROM schema_mof.formation_regime_inscription FRI
 LEFT JOIN schema_pilotage.ref_regime_inscription RI ON RI.code =FRI.code_regime_inscription
-;
+;*/
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_formation_regime_inscription'; END; $$;
 
 
 
 
-
-
-
-/* liste des chemins (sans les racines) */
-CREATE TABLE schema_pilotage.temp_odf_objet_formation_individuel_chemin AS
-SELECT *
-FROM schema_mof.objet_formation_chemin OFC
-ORDER BY chemin;
---DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.temp_odf_objet_formation_individuel_chemin'; END; $$;
-
-
-
-
-/* liste des objets de formations (sans les racines) */
+/* liste des objets de formations */
 CREATE TABLE schema_pilotage.odf_objet_formation AS
 SELECT 
-    OBF.id,
-	PER.code AS "code_periode",
-	PER.libelle_long AS "libelle_periode",
-    OBF.code,
-    OBF.libelle_court,
-    OBF.libelle_long,
-    OBF.description,
-	OFT.code AS "code_type",
-	OFT.libelle_court AS "libelle_type",
-	FC.code AS "code_categorie",
-	FC.libelle_court AS "libelle_categorie",
-    NULL as "niveau_sise",
-    OBF.nb_inscriptions_autorisees,
-    OBF.coefficient,
-    OBF.temoin_mutualise,
-    OBF.temoin_titre_acces_necessaire,
-    OBF.temoin_tele_enseignement,
-    OBF.temoin_stage,
-    OBF.capacite_accueil,
-    OBF.structure_principale AS "code_structure",
+    OM.id,
+	ESP.code AS "code_periode",
+	ESP.libelle_long AS "libelle_periode",
+    OM.code,
+    OM.libelle_court,
+    OM.libelle_long,
+    OM.description,
+	OM.code_diplome_sise,
+	OM.niveau_diplome_sise,
+	OM.code_parcours_type_sise,
+    CASE  
+		WHEN OM.code_type_objet_formation='FORMATION' THEN code_type_formation
+		ELSE OM.code_type_objet_formation
+	END AS "code_type",
+    CASE  
+		WHEN OM.code_type_objet_formation='FORMATION' THEN RTF.libelle_court
+        WHEN OM.code_type_objet_formation='GROUPEMENT' THEN 'GROUPEMENT'
+		ELSE RTOF.libelle_court
+	END AS "libelle_type",
+    CASE  
+		WHEN RTOF.categorie_objet='OBJET_TEMPOREL_THEORIQUE' THEN 'OTT'
+		WHEN RTOF.categorie_objet='OBJET_PEDAGOGIQUE' THEN 'OP'
+		WHEN RTOF.categorie_objet='OBJET_ORGANISATIONNEL' THEN 'OO'
+		WHEN OM.code_type_objet_formation='FORMATION' THEN 'FORMATION'
+		WHEN OM.code_type_objet_formation='GROUPEMENT' THEN 'GROUPEMENT'
+		ELSE NULL
+	END AS "code_categorie",
+    CASE  
+		WHEN RTOF.categorie_objet='OBJET_TEMPOREL_THEORIQUE' THEN 'Objet temporel théorique'
+		WHEN RTOF.categorie_objet='OBJET_PEDAGOGIQUE' THEN 'Objet pédagogique'
+		WHEN RTOF.categorie_objet='OBJET_ORGANISATIONNEL' THEN 'Objet organisationnel'
+		WHEN OM.code_type_objet_formation='FORMATION' THEN 'Formation'
+        WHEN OM.code_type_objet_formation='0' THEN 'Formation'
+        WHEN OM.code_type_objet_formation='1' THEN 'Formation'
+		WHEN OM.code_type_objet_formation='GROUPEMENT' THEN 'Groupement'
+		ELSE NULL
+	END AS "libelle_categorie",
+    OM.niveau_diplome_sise as "niveau_sise",
+--    OM.nb_inscriptions_autorisees,
+    OM.coefficient,
+    OM.temoin_mutualise,
+--    OM.temoin_titre_acces_necessaire,
+    OM.temoin_tele_enseignement,
+    OM.temoin_stage,
+    OM.capacite_accueil,
+    OM.code_structure_principale AS "code_structure",
     S.code_referentiel_externe AS "code_structure_externe",
-    ESE.libelle_structure_externe_web AS "libelle_structure_externe",
-    OBF.date_contexte
+    ESE.libelle_structure_externe_web AS "libelle_structure_externe"/*,
+    OM.date_contexte*/
 
-FROM schema_mof.objet_formation OBF
-LEFT JOIN schema_mof.periode PER ON PER.id = OBF.id_periode
-LEFT JOIN schema_mof.objet_formation_type OFT ON OFT.id = OBF.id_objet_formation_type
-LEFT JOIN schema_mof.objet_formation_categorie FC ON FC.id = OFT.id_categorie
-LEFT JOIN schema_ref.structure S ON S.code = OBF.structure_principale
-LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe;
+FROM schema_odf.objet_maquette OM
+LEFT JOIN schema_odf.espace ESP ON ESP.id = OM.id_espace
+LEFT JOIN schema_pilotage.ref_type_objet_formation RTOF ON RTOF.code = OM.code_type_objet_formation
+LEFT JOIN schema_pilotage.ref_type_formation RTF ON RTF.code = OM.code_type_formation
+--LEFT JOIN schema_mof.objet_formation_categorie FC ON FC.id = OFT.id_categorie
+LEFT JOIN schema_ref.structure S ON S.code = OM.code_structure_principale
+LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe
+
+WHERE ESP.type_espace = 'P'
+    
+    AND ESP.code NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
+    
+ORDER BY ESP.code
+;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_objet_formation'; END; $$;
-
-
-
-
-/* ajoute les racines dans les objets de formations et les chemins */
-ALTER TABLE schema_pilotage.odf_objet_formation ALTER COLUMN code_structure TYPE character varying(10), ALTER COLUMN libelle_court TYPE character varying(100), ALTER COLUMN libelle_long TYPE character varying(200);
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT * FROM schema_pilotage.odf_formation WHERE code NOT IN (SELECT code FROM schema_pilotage.odf_objet_formation)) LOOP
-		--RAISE NOTICE 'INSERT INTO schema_pilotage.odf_objet_formation VALUES (%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%)', 90000000000+r.id,r.code_periode,r.libelle_periode,r.code,r.libelle_court,r.libelle_long,'',r.code_type,r.libelle_type,'FORMATION','Formation',r.nb_inscriptions_autorisees,r.code_structure,NULL,FALSE,r.temoin_titre_acces_necessaire,r.temoin_tele_enseignement,FALSE,NULL,r.date_contexte;
-		INSERT INTO schema_pilotage.odf_objet_formation (id,code_periode,libelle_periode,code,libelle_court,libelle_long,description,code_type,libelle_type,code_categorie,libelle_categorie,nb_inscriptions_autorisees,code_structure,coefficient,temoin_mutualise,temoin_titre_acces_necessaire,temoin_tele_enseignement,temoin_stage,capacite_accueil,date_contexte) VALUES (90000000000+r.id,r.code_periode,r.libelle_periode,r.code,r.libelle_court,r.libelle_long,NULL,r.code_type,r.libelle_type,'FORMATION','Formation',r.nb_inscriptions_autorisees,r.code_structure,NULL,FALSE,r.temoin_titre_acces_necessaire,r.temoin_tele_enseignement,FALSE,NULL,r.date_contexte);
-		--RAISE NOTICE 'INSERT INTO schema_pilotage.temp_odf_objet_formation_individuel_chemin VALUES (%,%,%,%,%,%,%,%,%)', 90000000000+r.id,r.id,90000000000+r.id,r.code,FALSE,NULL,FALSE,FALSE,r.coefficient;
-		INSERT INTO schema_pilotage.temp_odf_objet_formation_individuel_chemin (id,id_formation,id_objet_formation,chemin,temoin_ouverture_inscription_impossible,id_of_chemin_bloquant,temoin_ouvert_choix_cursus,temoin_jamais_ouvert_choix_cursus,coefficient) VALUES (90000000000+r.id,r.id,90000000000+r.id,r.code,FALSE,NULL,FALSE,FALSE,NULL);
-    END LOOP;
-END $$;
---DO $$ BEGIN RAISE NOTICE 'DONE : ajoute les racines dans les objets de formations et les chemins'; END; $$;
-
-
-
-
-/* ajoute les groupements dans les objets de formations */
-DO $$ DECLARE
-    r RECORD;
-    position integer;
-BEGIN
-    position := 1;
-    FOR r IN (SELECT MG.code, MG.libelle_court, MG.libelle_long, MG.temoin_mutualise, F.code_periode, F.libelle_periode, F.code_structure
-                     FROM schema_mof.maquette_groupement MG,
-                         schema_pilotage.temp_odf_objet_formation_individuel_chemin OFC,
-                         schema_pilotage.odf_formation F
-                     WHERE OFC.chemin ILIKE CONCAT('%>', MG.code, '>%')
-                         AND MG.code NOT IN (SELECT code FROM schema_pilotage.odf_objet_formation)
-                         AND F.id = OFC.id_formation
-                         --AND MG.id=250
-                         AND F.code_periode NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
-					GROUP BY MG.code, MG.libelle_court, MG.libelle_long, MG.temoin_mutualise, F.code_periode, F.libelle_periode, F.code_structure
-                  ) LOOP
-		--RAISE NOTICE 'INSERT INTO schema_pilotage.odf_objet_formation VALUES (%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%,%)', 80000000000+r.id,r.code_periode,r.libelle_periode,r.code,r.libelle_court,r.libelle_long,'','GRP','Groupement','GRP','Groupement',NULL,r.code_structure,NULL,r.temoin_mutualise,FALSE,FALSE,FALSE,NULL,NULL;
-		INSERT INTO schema_pilotage.odf_objet_formation (id,code_periode,libelle_periode,code,libelle_court,libelle_long,description,code_type,libelle_type,code_categorie,libelle_categorie,nb_inscriptions_autorisees,code_structure,coefficient,temoin_mutualise,temoin_titre_acces_necessaire,temoin_tele_enseignement,temoin_stage,capacite_accueil,date_contexte) VALUES (70000000000+position,r.code_periode,r.libelle_periode,r.code,r.libelle_court,r.libelle_long,NULL,'GRP','Groupement','GRP','Groupement',NULL,r.code_structure,NULL,r.temoin_mutualise,FALSE,FALSE,FALSE,NULL,NULL);
-        
-        position := position + 1;
-    END LOOP;
-END $$;
---DO $$ BEGIN RAISE NOTICE 'DONE : ajoute les groupements dans les objets de formations '; END; $$;
-
-
-
-
-/* ajoute les groupements dans les chemins */
-DO $$ DECLARE
-    r RECORD;
-    position integer;
-BEGIN
-    position := 1;
-    FOR r IN (SELECT OOF.id, OOF.code, reverse(SUBSTRING(reverse(OFC.chemin), STRPOS(reverse(OFC.chemin), reverse(OOF.code)), CHAR_LENGTH(reverse(OFC.chemin)))) AS "chemin_split", OOF.libelle_court, OOF.libelle_long, OOF.temoin_mutualise, F.code_periode, F.libelle_periode, F.code_structure, F.id AS "id_formation"
-                     FROM schema_pilotage.odf_objet_formation OOF,
-                         schema_pilotage.temp_odf_objet_formation_individuel_chemin OFC,
-                         schema_pilotage.odf_formation F
-                     WHERE OOF.code_type='GRP'
-                         AND OFC.chemin ILIKE CONCAT('%>', OOF.code, '>%')
-                         AND F.id = OFC.id_formation
-						 AND F.code_periode = OOF.code_periode
-						 AND F.code_periode NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
-					GROUP BY OOF.id, OOF.code, "chemin_split", OOF.libelle_court, OOF.libelle_long, OOF.temoin_mutualise, F.code_periode, F.libelle_periode, F.code_structure, F.id
-                  ) LOOP
-		--RAISE NOTICE 'INSERT INTO schema_pilotage.temp_odf_objet_formation_individuel_chemin VALUES (%,%,%,%,%,%,%,%,%)', 80000000000+r.id,r.id_formation,80000000000+r.id,r.chemin_split,FALSE,NULL,FALSE,FALSE,NULL;
-		INSERT INTO schema_pilotage.temp_odf_objet_formation_individuel_chemin (id,id_formation,id_objet_formation,chemin,temoin_ouverture_inscription_impossible,id_of_chemin_bloquant,temoin_ouvert_choix_cursus,temoin_jamais_ouvert_choix_cursus,coefficient) VALUES (80000000000+position,r.id_formation,r.id,r.chemin_split,FALSE,NULL,FALSE,FALSE,NULL);
-        
-        position := position + 1;
-    END LOOP;
-END $$;
---DO $$ BEGIN RAISE NOTICE 'DONE : ajoute les groupements dans les chemins'; END; $$;
 
 
 
@@ -819,50 +822,51 @@ END $$;
 /* liste des objets, chemins et formations consolidées */
 CREATE TABLE schema_pilotage.odf_objet_formation_chemin AS
 SELECT 	
-	OFC.id,
+	CON.id,
 	NULL AS id_parent,
-	F.code_periode,
-	F.libelle_periode,
-	OFC.chemin,
-    CASE  
-		WHEN STRPOS(OFC.chemin, '>')>0 THEN reverse(SUBSTRING(reverse(OFC.chemin), STRPOS(reverse(OFC.chemin), '>')+1, CHAR_LENGTH(reverse(OFC.chemin))))
-		ELSE NULL
-	END AS "chemin_parent",
+	OM.code_periode,
+	OM.libelle_periode,
+    CON.chemin AS "chemin_uuid",
+    NULL AS "chemin",
+    NULL AS "chemin_parent",
 	
-	OFC.id_objet_formation,
-	OFI.code AS "code_objet_formation",
-    
-    CASE  
-		WHEN PEM.pegase_code_etape IS NULL THEN FALSE
-		ELSE TRUE
-	END AS "objet_formation_ouvert_aux_ia",
+	OM.id AS "id_objet_formation",
+	OM.code AS "code_objet_formation",
+    CON.temoin_inscription_administrative AS "objet_formation_ouvert_aux_ia",
     
 	NULL AS id_ancetre_ouvert_aux_ia,
 	NULL AS "chemin_ancetre_ouvert_aux_ia",
     
-	OFI.libelle_court AS "libelle_court_objet_formation",
-	OFI.libelle_long AS "libelle_long_objet_formation",
-	OFI.description AS "description_objet_formation",
-	OFI.code_type AS "code_type_objet_formation",
-	OFI.libelle_type AS "libelle_type_objet_formation",
-	OFI.code_categorie AS "code_categorie_objet_formation",
-    NULL AS "niveau_sise_objet_formation",
-	OFI.libelle_categorie AS "libelle_categorie_objet_formation",
-	OFI.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_objet_formation",
-	OFI.coefficient AS "coefficient_objet_formation",
-	OFI.temoin_mutualise AS "temoin_mutualise_objet_formation",
-	OFI.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire_objet_formation",
-	OFI.temoin_tele_enseignement AS "temoin_tele_enseignement_objet_formation",
-	OFI.temoin_stage AS "temoin_stage_objet_formation",
-	OFI.capacite_accueil AS "capacite_accueil_objet_formation",
-	OFI.code_structure AS "code_structure_objet_formation",
+	OM.libelle_court AS "libelle_court_objet_formation",
+	OM.libelle_long AS "libelle_long_objet_formation",
+	OM.description AS "description_objet_formation",
+	OM.code_diplome_sise AS "code_diplome_sise_objet_formation",
+	OM.niveau_diplome_sise AS "niveau_diplome_sise_objet_formation",
+	OM.code_parcours_type_sise AS "code_parcours_type_sise_objet_formation",
+	OM.code_type AS "code_type_objet_formation",
+	OM.libelle_type AS "libelle_type_objet_formation",
+	OM.code_categorie AS "code_categorie_objet_formation",
+    OM.niveau_diplome_sise AS "niveau_sise_objet_formation",
+	OM.libelle_categorie AS "libelle_categorie_objet_formation",
+--	OM.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_objet_formation",
+	OM.coefficient AS "coefficient_objet_formation",
+	OM.temoin_mutualise AS "temoin_mutualise_objet_formation",
+--	OM.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire_objet_formation",
+	OM.temoin_tele_enseignement AS "temoin_tele_enseignement_objet_formation",
+	OM.temoin_stage AS "temoin_stage_objet_formation",
+	OM.capacite_accueil AS "capacite_accueil_objet_formation",
+	OM.code_structure AS "code_structure_objet_formation",
     S1.code_referentiel_externe AS "code_structure_externe_objet_formation",
     ESE1.libelle_structure_externe_web AS "libelle_structure_externe_objet_formation",
 	
-	OFC.id_formation,
+	F.id AS "id_formation",
 	F.code AS "code_formation",
 	F.libelle_court AS "libelle_court_formation",
 	F.libelle_long AS "libelle_long_formation",
+	F.description AS "description_formation",
+	F.code_diplome_sise AS "code_diplome_sise_formation",
+	F.niveau_diplome_sise AS "niveau_diplome_sise_formation",
+	F.code_parcours_type_sise AS "code_parcours_type_sise_formation",
 	F.code_type AS "code_type_formation",
 	F.libelle_type AS "libelle_type_formation",
 	F.code_type_diplome,
@@ -888,61 +892,67 @@ SELECT
     FALSE AS "sous_convention",
     NULL AS "sous_convention_etablissement",
     
-	F.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_formation",
-	F.temoin_ouverte_a_inscription AS "temoin_ouverte_a_inscription",
-	F.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire",
+--	F.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_formation",
+--	F.temoin_ouverte_a_inscription AS "temoin_ouverte_a_inscription",
+--	F.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire",
 	F.temoin_tele_enseignement AS "temoin_tele_enseignement",
-	F.temoin_jamais_ouverte_a_inscription AS "temoin_jamais_ouverte_a_inscription",
-	F.temoin_envoyee_a_inscription AS "temoin_envoyee_a_inscription",
-	F.temoin_ouverte_choix_cursus AS "temoin_ouverte_choix_cursus",
-	F.temoin_jamais_ouverte_choix_cursus AS "temoin_jamais_ouverte_choix_cursus",
+--	F.temoin_jamais_ouverte_a_inscription AS "temoin_jamais_ouverte_a_inscription",
+--	F.temoin_envoyee_a_inscription AS "temoin_envoyee_a_inscription",
+--	F.temoin_ouverte_choix_cursus AS "temoin_ouverte_choix_cursus",
+--	F.temoin_jamais_ouverte_choix_cursus AS "temoin_jamais_ouverte_choix_cursus",
 	F.credit_ects AS "credit_ects_formation",
-	F.code_structure_budgetaire AS "code_structure_budgetaire_formation",
-	F.code_uai_structure_budgetaire AS "code_uai_structure_budgetaire_formation",
-	F.code_referentiel_externe_structure_budgetaire AS "code_referentiel_externe_structure_budgetaire_formation",
-	F.denomination_principale_structure_budgetaire AS "denomination_principale_structure_budgetaire_formation",
-	F.code_tarification AS "code_tarification_formation",
+--	F.code_structure_budgetaire AS "code_structure_budgetaire_formation",
+--	F.code_uai_structure_budgetaire AS "code_uai_structure_budgetaire_formation",
+--	F.code_referentiel_externe_structure_budgetaire AS "code_referentiel_externe_structure_budgetaire_formation",
+--	F.denomination_principale_structure_budgetaire AS "denomination_principale_structure_budgetaire_formation",
+--	F.code_tarification AS "code_tarification_formation",
 	F.code_structure AS "code_structure_formation",
     S2.code_referentiel_externe AS "code_structure_externe_formation",
     ESE2.libelle_structure_externe_web AS "libelle_structure_externe_formation"
 	
-FROM schema_pilotage.temp_odf_objet_formation_individuel_chemin OFC
-LEFT JOIN schema_pilotage.odf_formation F ON F.id = OFC.id_formation
-LEFT JOIN schema_pilotage.odf_objet_formation OFI ON OFI.id = OFC.id_objet_formation
-LEFT JOIN schema_uphf.pegase_etapes_mof PEM ON PEM.pegase_code_etape = OFI.code AND PEM.code_periode = F.code_periode
-LEFT JOIN schema_ref.structure S1 ON S1.code = OFI.code_structure
+FROM schema_pilotage.odf_objet_formation OM
+LEFT JOIN schema_odf.contexte CON ON CON.id_objet_maquette = OM.id
+LEFT JOIN schema_pilotage.odf_formation F ON F.id = CON.chemin[1]
+LEFT JOIN schema_ref.structure S1 ON S1.code = OM.code_structure
 LEFT JOIN schema_ref.structure S2 ON S2.code = F.code_structure
 LEFT JOIN schema_pilotage.etab_structure_externe ESE1 ON ESE1.code_structure_externe = S1.code_referentiel_externe
 LEFT JOIN schema_pilotage.etab_structure_externe ESE2 ON ESE2.code_structure_externe = S2.code_referentiel_externe
 GROUP BY 
-    OFC.id,
-    F.code_periode,
-    F.libelle_periode,
-    OFC.chemin,
-    OFC.id_objet_formation,
-    OFI.code,
-    "objet_formation_ouvert_aux_ia",
-    OFI.libelle_court,
-    OFI.libelle_long,
-    OFI.description,
-    OFI.code_type,
-    OFI.libelle_type,
-    OFI.code_categorie,
-    OFI.libelle_categorie,
-    OFI.nb_inscriptions_autorisees,
-    OFI.coefficient,
-    OFI.temoin_mutualise,
-    OFI.temoin_titre_acces_necessaire,
-    OFI.temoin_tele_enseignement,
-    OFI.temoin_stage,
-    OFI.capacite_accueil,
-    OFI.code_structure,
+    CON.id,
+    OM.code_periode,
+    OM.libelle_periode,
+    CON.chemin,
+    OM.id,
+    OM.code,
+    CON.temoin_inscription_administrative,
+    OM.libelle_court,
+    OM.libelle_long,
+    OM.description,
+	OM.code_diplome_sise,
+	OM.niveau_diplome_sise,
+	OM.code_parcours_type_sise,
+    OM.code_type,
+    OM.libelle_type,
+    OM.code_categorie,
+    OM.libelle_categorie,
+--    OM.nb_inscriptions_autorisees,
+    OM.coefficient,
+    OM.temoin_mutualise,
+--    OM.temoin_titre_acces_necessaire,
+    OM.temoin_tele_enseignement,
+    OM.temoin_stage,
+    OM.capacite_accueil,
+    OM.code_structure,
     S1.code_referentiel_externe,
     ESE1.libelle_structure_externe_web,
-    OFC.id_formation,
+    F.id,
     F.code,
     F.libelle_court,
     F.libelle_long,
+	F.description,
+	F.code_diplome_sise,
+	F.niveau_diplome_sise,
+	F.code_parcours_type_sise,
     F.code_type,
     F.libelle_type,
     F.code_type_diplome,
@@ -963,59 +973,71 @@ GROUP BY
     F.libelle_domaine_formation,
     F.code_mention,
     F.libelle_mention,
-    F.nb_inscriptions_autorisees,
-    F.temoin_ouverte_a_inscription,
-    F.temoin_titre_acces_necessaire,
+--    F.nb_inscriptions_autorisees,
+--    F.temoin_ouverte_a_inscription,
+--    F.temoin_titre_acces_necessaire,
     F.temoin_tele_enseignement,
-    F.temoin_jamais_ouverte_a_inscription,
-    F.temoin_envoyee_a_inscription,
-    F.temoin_ouverte_choix_cursus,
-    F.temoin_jamais_ouverte_choix_cursus,
+--    F.temoin_jamais_ouverte_a_inscription,
+--    F.temoin_envoyee_a_inscription,
+--    F.temoin_ouverte_choix_cursus,
+--    F.temoin_jamais_ouverte_choix_cursus,
     F.credit_ects,
-    F.code_structure_budgetaire,
-    F.code_uai_structure_budgetaire,
-    F.code_referentiel_externe_structure_budgetaire,
-    F.denomination_principale_structure_budgetaire,
-    F.code_tarification,
+--    F.code_structure_budgetaire,
+--    F.code_uai_structure_budgetaire,
+--    F.code_referentiel_externe_structure_budgetaire,
+--    F.denomination_principale_structure_budgetaire,
+--    F.code_tarification,
     F.code_structure,
     S2.code_referentiel_externe,
     ESE2.libelle_structure_externe_web
-ORDER BY F.code_periode, chemin;
-ALTER TABLE schema_pilotage.odf_objet_formation_chemin ALTER COLUMN id_parent TYPE bigint USING (id_parent::bigint);
-ALTER TABLE schema_pilotage.odf_objet_formation_chemin ALTER COLUMN id_ancetre_ouvert_aux_ia TYPE bigint USING (id_ancetre_ouvert_aux_ia::bigint);
+ORDER BY OM.code_periode, chemin;
+ALTER TABLE schema_pilotage.odf_objet_formation_chemin ALTER COLUMN id_parent TYPE uuid USING (id_parent::uuid);
+ALTER TABLE schema_pilotage.odf_objet_formation_chemin ALTER COLUMN id_ancetre_ouvert_aux_ia TYPE uuid USING (id_ancetre_ouvert_aux_ia::uuid);
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_objet_formation_chemin'; END; $$;
 
 
-/* complète le parent - note : passe par une boucle FOR car l'UPDATE en masse bloque tout le script ? */
+
+/* création de plusieurs index */
 CREATE UNIQUE INDEX odf_objet_formation_chemin_id_idx ON schema_pilotage.odf_objet_formation_chemin (id);
+--CREATE UNIQUE INDEX odf_objet_formation_chemin_id_objet_formation_idx ON schema_pilotage.odf_objet_formation_chemin (id_objet_formation);
+CREATE INDEX odf_objet_formation_chemin_chemin_uuid_idx ON schema_pilotage.odf_objet_formation_chemin (chemin_uuid);
 CREATE INDEX odf_objet_formation_chemin_chemin_idx ON schema_pilotage.odf_objet_formation_chemin (chemin);
 CREATE INDEX odf_objet_formation_chemin_chemin_parent_idx ON schema_pilotage.odf_objet_formation_chemin (chemin_parent);
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE INDEX xxx ON schema_pilotage.odf_objet_formation_chemin'; END; $$;
 
-/*DO $$ DECLARE
+
+
+
+/* calcule le chemin et chemin_parent */
+DO $$ DECLARE
     r RECORD;
+	uuid_chemin_item uuid;
 BEGIN
-    FOR r IN (SELECT OFC_PERE.id AS "id_pere", OFC_FILS.id AS "id_fils"
-                              FROM  schema_pilotage.odf_objet_formation_chemin OFC_FILS,
-                                    schema_pilotage.odf_objet_formation_chemin OFC_PERE
-                              WHERE OFC_FILS.code_periode NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
-                                 AND OFC_PERE.code_periode = OFC_FILS.code_periode
-                                 AND OFC_FILS.chemin_parent IS NOT NULL
-                                 AND OFC_PERE.chemin = OFC_FILS.chemin_parent
-                              GROUP BY OFC_PERE.id, OFC_FILS.id) LOOP
-		RAISE NOTICE 'UPDATE schema_pilotage.odf_objet_formation_chemin SET id_parent = % WHERE id = %', r.id_pere, r.id_fils;
-		UPDATE schema_pilotage.odf_objet_formation_chemin SET id_parent = r.id_pere WHERE id = r.id_fils;
+	FOR r IN (SELECT * FROM schema_pilotage.odf_objet_formation_chemin) LOOP
+    --FOR r IN (SELECT * FROM schema_pilotage.odf_objet_formation_chemin LIMIT 200) LOOP
+		FOREACH uuid_chemin_item in array r.chemin_uuid LOOP
+			--raise info '% - %', uuid_chemin_item, r.id;
+			UPDATE schema_pilotage.odf_objet_formation_chemin
+			SET chemin = 
+				CASE
+					WHEN chemin IS NULL OR chemin = '' THEN (SELECT code FROM schema_odf.objet_maquette WHERE id=uuid_chemin_item)
+					ELSE CONCAT(chemin, '>', (SELECT code FROM schema_odf.objet_maquette WHERE id=uuid_chemin_item))
+				END
+			WHERE id = r.id;
+		END LOOP;
+
     END LOOP;
-END $$;*/
+END $$;
 
+UPDATE schema_pilotage.odf_objet_formation_chemin SET chemin_parent = reverse(SUBSTRING(reverse(chemin), STRPOS(reverse(chemin), '>')+1, CHAR_LENGTH(reverse(chemin)))) WHERE STRPOS(chemin, '>')>0;
+
+
+
+/* complète le parent - note : passe par une boucle FOR car l'UPDATE en masse bloque tout le script ? */
 UPDATE schema_pilotage.odf_objet_formation_chemin OFC_FILS
-SET id_parent = OFC_PERE.id
-FROM schema_pilotage.odf_objet_formation_chemin OFC_PERE
-WHERE OFC_FILS.code_periode NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
-   AND OFC_PERE.code_periode = OFC_FILS.code_periode
-   AND OFC_FILS.chemin_parent IS NOT NULL
-   AND OFC_PERE.chemin = OFC_FILS.chemin_parent;
-
+SET id_parent = ENF.id_objet_maquette_parent
+FROM schema_odf.enfant ENF
+WHERE OFC_FILS.id_objet_formation = ENF.id_objet_maquette;
 --DO $$ BEGIN RAISE NOTICE 'DONE : UPDATE schema_pilotage.odf_objet_formation_chemin SET id_parent'; END; $$;
 
 
@@ -1026,13 +1048,12 @@ DO $$ DECLARE
 BEGIN
     FOR r IN (SELECT *
                               FROM  schema_pilotage.odf_objet_formation_chemin
-                              WHERE code_periode NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
-                              AND objet_formation_ouvert_aux_ia = TRUE
+                              WHERE objet_formation_ouvert_aux_ia = TRUE
                               --AND code_type_diplome='TYD020'
                               --AND code_periode='PER-2023'
                               ORDER BY code_periode, code_formation, chemin DESC) LOOP
-		--RAISE NOTICE 'UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = %, chemin_ancetre_ouvert_aux_ia = % WHERE chemin LIKE % AND code_periode = % AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL', r.id, r.chemin, r.chemin||'%', r.code_periode;
-        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE objet_formation_ouvert_aux_ia = FALSE AND chemin LIKE r.chemin||'>%' AND code_periode = r.code_periode AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        --UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE objet_formation_ouvert_aux_ia = FALSE AND chemin LIKE r.chemin||'>%' AND code_periode = r.code_periode AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE r.id_objet_formation=ANY(chemin_uuid) AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
     END LOOP;
 END $$;
 
@@ -1040,13 +1061,13 @@ END $$;
 
 
 /* complète le niveau de formation */
-UPDATE schema_pilotage.odf_objet_formation_chemin OFC
+/*UPDATE schema_pilotage.odf_objet_formation_chemin OFC
 SET niveau = NULL;
 
 UPDATE schema_pilotage.odf_objet_formation_chemin OFC
 SET niveau = concat(cursus_formation_bcn, niveau_sise_objet_formation)
 WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
-    AND (cursus_formation_bcn IS NOT NULL AND niveau_sise_objet_formation IS NOT NULL);
+    AND (cursus_formation_bcn IS NOT NULL AND niveau_sise_objet_formation IS NOT NULL);*/
     
     
 
@@ -1252,43 +1273,6 @@ CREATE TABLE schema_pilotage.ins_apprenant AS
    
    WHERE statut_admission= 'AU'/* Admission utilisée donc il existe un début de dossier dans CDI */
    AND code_apprenant NOT IN (SELECT code_apprenant FROM schema_gestion.apprenant));
-
-
-
-
-CREATE TABLE schema_pilotage.ins_cible AS /* TODO supprimer après s'être raccroché à ODF */
- SELECT cible.id,
-    cible.libelle_long,
-    cible.libelle_court,
-    cible.code_chemin,
-    reverse(split_part(reverse(cible.code_chemin), '>', 1)) AS code_feuille,
-    cible.code_structure,
-    cible.code_type,
-    cible.code_categorie,
-    cible.code_nature_diplome AS "code_nature",
-    cible.version_maquette,
-    cible.code_periode,
-    cible.code_diplome_sise,
-    cible.niveau_sise,
-    
-    F.libelle_periode AS "libelle_periode",
-    F.libelle_court_formation AS "libelle_formation",
-    F.code_formation AS "code_formation",
-    F.code_type_diplome AS "type_diplome",
-    F.libelle_type_diplome AS "libelle_type_diplome",
-    F.code_objet_formation AS "code_objet_ia",
-    F.libelle_court_objet_formation AS "libelle_objet_ia",
-    F.cursus_formation_bcn AS "cursus_formation_bcn",
-    F.niveau AS "niveau",
-    F.niveau_formation_bcn AS "niveau_formation_bcn",
-    NULL AS "type_public",
-    F.code_domaine_formation AS "code_domaine_formation",
-    F.libelle_domaine_formation AS "libelle_domaine_formation",
-    F.code_structure_externe_objet_formation AS "sinaps_code_composante",
-    F.libelle_structure_externe_objet_formation AS "sinaps_libelle_composante"
-    
-   FROM schema_gestion.cible
-   LEFT JOIN schema_pilotage.odf_objet_formation_chemin F ON F.chemin = cible.code_chemin AND F.code_periode = cible.code_periode;
 
 
 
@@ -1515,13 +1499,10 @@ CREATE VIEW schema_pilotage.ins_contacts AS
 /* inscriptions */
 CREATE TABLE schema_pilotage.ins_inscription_validee_ou_annulee AS
  SELECT inscription.id::varchar(255),
-    inscription.id_cible, /* TODO supprimer après s'être raccroché à ODF */
     OOFC.id AS "id_objet_formation_chemin",
     inscription.id_apprenant::varchar(255),
     OOFC.code_periode,
     OOFC.libelle_periode,
-    OOFC.code_objet_formation AS "code_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
-    OOFC.libelle_court_objet_formation AS "libelle_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.code_objet_formation AS "code_objet_formation",
     OOFC.libelle_court_objet_formation AS "libelle_objet_formation",
     inscription.origine,
@@ -1594,17 +1575,9 @@ CREATE TABLE schema_pilotage.ins_inscription_validee_ou_annulee AS
 
 
 
-
-
-
-
-
-
-
 /* admissions */
 CREATE TABLE schema_pilotage.ins_admission AS
  SELECT admission.id::varchar(255),
-	C.id AS "id_cible", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.id AS "id_objet_formation_chemin",
     admission.id_admis AS "id_admis",
 	CASE  
@@ -1614,8 +1587,6 @@ CREATE TABLE schema_pilotage.ins_admission AS
 	INS.id AS "id_inscription",
     OOFC.code_periode,
     OOFC.libelle_periode,
-    OOFC.code_objet_formation AS "code_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
-    OOFC.libelle_court_objet_formation AS "libelle_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.code_objet_formation AS "code_objet_formation",
     OOFC.libelle_court_objet_formation AS "libelle_objet_formation",
     admission.origine_admission AS "origine",
@@ -1629,12 +1600,11 @@ CREATE TABLE schema_pilotage.ins_admission AS
    FROM schema_inscription.admission
    
    LEFT JOIN schema_pilotage.ins_admis AD ON AD.id = admission.id_admis
-   LEFT JOIN schema_pilotage.ins_cible C ON C.code_feuille ILIKE admission.code_cible AND C.code_periode = admission.code_periode /* TODO supprimer après s'être raccroché à ODF */
-   LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.chemin = C.code_chemin AND OOFC.code_periode = C.code_periode
-   LEFT JOIN schema_pilotage.ins_inscription_validee_ou_annulee INS ON INS.id_cible = C.id AND INS.id_apprenant = AD.id_apprenant
+   LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.code_objet_formation = admission.code_cible AND OOFC.code_periode = admission.code_periode
+   LEFT JOIN schema_pilotage.ins_inscription_validee_ou_annulee INS ON INS.id_objet_formation_chemin = OOFC.id AND INS.id_apprenant = AD.id_apprenant
    
    WHERE AD.id_apprenant IS NOT NULL OR AD.id IS NOT NULL
-   GROUP BY admission.id, C.id, OOFC.id, AD.id_apprenant, AD.id, INS.id, OOFC.code_periode, OOFC.libelle_periode, OOFC.code_objet_formation, OOFC.libelle_court_objet_formation, admission.origine_admission, AD.numero_candidat, admission.voie_admission, admission.annee_concours, admission.statut, AD.date_de_creation, AD.date_de_modification
+   GROUP BY admission.id, OOFC.id, AD.id_apprenant, AD.id, INS.id, OOFC.code_periode, OOFC.libelle_periode, OOFC.code_objet_formation, OOFC.libelle_court_objet_formation, admission.origine_admission, AD.numero_candidat, admission.voie_admission, admission.annee_concours, admission.statut, AD.date_de_creation, AD.date_de_modification
    ORDER BY code_periode, admission.id;
 
 
@@ -1648,13 +1618,10 @@ CREATE TABLE schema_pilotage.ins_inscription AS
    UNION
    
    (SELECT id,
-	id_cible, /* TODO supprimer après s'être raccroché à ODF */
     id_objet_formation_chemin,
 	id_apprenant,
     code_periode,
     libelle_periode,
-    code_objet_ia, /* TODO supprimer après s'être raccroché à ODF */
-    libelle_objet_ia, /* TODO supprimer après s'être raccroché à ODF */
     code_objet_formation,
     libelle_objet_formation,
     origine,
@@ -1788,10 +1755,7 @@ CREATE TABLE schema_pilotage.pai_facture AS
     F.quittance_numero,
     F.quittance_date_generation,
     F.quittance_date_cloture,
-    C.id AS "id_cible", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.id AS "id_objet_formation_chemin",
-    OOFC.code_objet_formation AS "code_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
-    OOFC.libelle_court_objet_formation AS "libelle_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.code_objet_formation AS "code_objet_formation",
     OOFC.libelle_court_objet_formation AS "libelle_objet_formation",
     F.code_periode,
@@ -1800,12 +1764,11 @@ CREATE TABLE schema_pilotage.pai_facture AS
     F.temoin_annulee AS "annulee"
 
    FROM schema_pai.facture F
-   LEFT JOIN schema_pilotage.ins_cible C ON C.code_chemin = F.code_chemin AND C.code_periode = F.code_periode /* TODO supprimer après s'être raccroché à ODF */
    LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.chemin = F.code_chemin AND OOFC.code_periode = F.code_periode
    LEFT JOIN schema_pilotage.ins_apprenant APP ON APP.code_apprenant = F.code_apprenant
    LEFT JOIN schema_pilotage.pai_structure_budgetaire SB ON SB.id = F.structure_budgetaire_ref
    
-   GROUP BY F.id,F.numero,F.date_et_heure_emission,APP.id,F.temoin_ue,F.temoin_accords,SB.id,F.quittance_numero,F.quittance_date_generation,F.quittance_date_cloture,C.id,OOFC.id,OOFC.code_objet_formation,OOFC.libelle_court_objet_formation,F.code_periode,F.formation_ref,F.statut,F.temoin_annulee
+   GROUP BY F.id,F.numero,F.date_et_heure_emission,APP.id,F.temoin_ue,F.temoin_accords,SB.id,F.quittance_numero,F.quittance_date_generation,F.quittance_date_cloture,OOFC.id,OOFC.code_objet_formation,OOFC.libelle_court_objet_formation,F.code_periode,F.formation_ref,F.statut,F.temoin_annulee
    ORDER BY F.code_periode, F.date_et_heure_emission;
 
 
@@ -1848,10 +1811,7 @@ CREATE TABLE schema_pilotage.pai_ligne_facture AS
 
 CREATE TABLE schema_pilotage.pai_formation_tarification AS
  SELECT F.id,
-    C.id AS "id_cible", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.id AS "id_objet_formation_chemin",
-    OOFC.code_objet_formation AS "code_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
-    OOFC.libelle_court_objet_formation AS "libelle_objet_ia", /* TODO supprimer après s'être raccroché à ODF */
     OOFC.code_objet_formation AS "code_objet_formation",
     OOFC.libelle_court_objet_formation AS "libelle_objet_formation",
     F.code_periode,
@@ -1863,7 +1823,6 @@ CREATE TABLE schema_pilotage.pai_formation_tarification AS
     
 
    FROM schema_pai.formation F
-   LEFT JOIN schema_pilotage.ins_cible C ON C.code_objet_ia = F.code AND C.code_periode = F.code_periode /* TODO supprimer après s'être raccroché à ODF */
    LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.code_objet_formation = F.code AND OOFC.code_periode = F.code_periode
    LEFT JOIN schema_pai.tarification T ON T.id = F.id_tarification AND T.code_periode = F.code_periode;
 
@@ -2039,10 +1998,10 @@ SELECT
 	D.type_finalite_formation_libelle_court AS "diplome_type_finalite_formation_libelle_court",
 	D.type_finalite_formation_libelle_long AS "diplome_type_finalite_formation_libelle_long",
 	D.type_finalite_formation_libelle_affichage AS "diplome_type_finalite_formation_libelle_affichage",
-	D.date_contexte AS "diplome_date_contexte",
+	--D.date_contexte AS "diplome_date_contexte",
 	D.libelle_court AS "diplome_libelle_court",
-	D.denomination AS "diplome_denomination",
-	D.validite AS "diplome_validite",
+	D.intitule AS "diplome_intitule",
+	--D.validite AS "diplome_validite",
 	D.temoin_actif AS "diplome_temoin_actif",
 	D.etat AS "diplome_etat",
 	PAR.date_edition AS "parchemin_date_edition",
@@ -2071,7 +2030,11 @@ LEFT JOIN schema_coc.parametrage_parchemin PPAR ON PPAR.id_diplome = D.id
 LEFT JOIN schema_coc.modele M ON M.id = PPAR.id_modele
 
 GROUP BY APP.id,APP.code_apprenant,P.code,P.libelle_long,DLOM.code_objet_maquette,AD.id_diplome,AD.temoin_annulation_autorisation_impossible,AD.code_mention,AD.libelle_court_mention,AD.libelle_long_mention,AD.libelle_affichage_mention,AD.date_consommation_referentiel,
-AD.date_autorisation,AD.utilisateur_autorisation,AD.date_annulation_apres_edition,AD.utilisateur_annulation_apres_edition,AD.motif_annulation_apres_edition,D.code_structure_etablissement,D.code,D.version,D.type_finalite_formation_code,D.type_finalite_formation_libelle_court,D.type_finalite_formation_libelle_long,D.type_finalite_formation_libelle_affichage,D.date_contexte,D.libelle_court,D.denomination,D.validite,D.temoin_actif,D.etat,PAR.date_edition,PAR.numero_edition,PAR.date_signature_recteur,PAR.libelle_parcours_type_original,
+AD.date_autorisation,AD.utilisateur_autorisation,AD.date_annulation_apres_edition,AD.utilisateur_annulation_apres_edition,AD.motif_annulation_apres_edition,D.code_structure_etablissement,D.code,D.version,D.type_finalite_formation_code,D.type_finalite_formation_libelle_court,D.type_finalite_formation_libelle_long,D.type_finalite_formation_libelle_affichage,
+--D.date_contexte,
+D.libelle_court,D.intitule,
+--D.validite,
+D.temoin_actif,D.etat,PAR.date_edition,PAR.numero_edition,PAR.date_signature_recteur,PAR.libelle_parcours_type_original,
 PPAR.libelle_court,	PPAR.description,PPAR.denomination_diplome,PPAR.libelle_parcours_type,M.contenu_reference,M.libelle_court,M.type_template
 ;
 
@@ -2089,33 +2052,5 @@ BEGIN
 			RAISE NOTICE 'Supprime la TABLE %', quote_ident(r.tablename);
 			EXECUTE 'DROP TABLE IF EXISTS schema_pilotage.' || quote_ident(r.tablename) || ' CASCADE';
 		END IF;
-    END LOOP;
-END $$;
-
-
-
-
-
-
-
-
-/* ************************************************************************** */
-/* Droits pegaseuser */
-
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'schema_pilotage') LOOP
-         RAISE NOTICE 'ALTER TABLE %', quote_ident(r.tablename);
-         EXECUTE 'ALTER TABLE schema_pilotage.' || quote_ident(r.tablename) || ' OWNER TO pegaseuser';
-    END LOOP;
-END $$;
-
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'schema_pilotage') LOOP
-         RAISE NOTICE 'ALTER VIEW %', quote_ident(r.viewname);
-         EXECUTE 'ALTER VIEW schema_pilotage.' || quote_ident(r.viewname) || ' OWNER TO pegaseuser';
     END LOOP;
 END $$;
