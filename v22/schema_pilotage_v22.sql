@@ -832,10 +832,7 @@ SELECT
 	OFC.id_objet_formation,
 	OFI.code AS "code_objet_formation",
     
---    CASE  
---		WHEN PEM.pegase_code_etape IS NULL THEN FALSE
---		ELSE TRUE
---	END AS "objet_formation_ouvert_aux_ia",
+	FALSE AS "objet_formation_ouvert_aux_ia",
     
 	NULL AS id_ancetre_ouvert_aux_ia,
 	NULL AS "chemin_ancetre_ouvert_aux_ia",
@@ -909,7 +906,6 @@ SELECT
 FROM schema_pilotage.temp_odf_objet_formation_individuel_chemin OFC
 LEFT JOIN schema_pilotage.odf_formation F ON F.id = OFC.id_formation
 LEFT JOIN schema_pilotage.odf_objet_formation OFI ON OFI.id = OFC.id_objet_formation
--- LEFT JOIN schema_uphf.pegase_etapes_mof PEM ON PEM.pegase_code_etape = OFI.code AND PEM.code_periode = F.code_periode
 LEFT JOIN schema_ref.structure S1 ON S1.code = OFI.code_structure
 LEFT JOIN schema_ref.structure S2 ON S2.code = F.code_structure
 LEFT JOIN schema_pilotage.etab_structure_externe ESE1 ON ESE1.code_structure_externe = S1.code_referentiel_externe
@@ -921,7 +917,7 @@ GROUP BY
     OFC.chemin,
     OFC.id_objet_formation,
     OFI.code,
---    "objet_formation_ouvert_aux_ia",
+    "objet_formation_ouvert_aux_ia",
     OFI.libelle_court,
     OFI.libelle_long,
     OFI.description,
@@ -1027,15 +1023,12 @@ BEGIN
     FOR r IN (SELECT *
                               FROM  schema_pilotage.odf_objet_formation_chemin
                               WHERE code_periode NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
---                              AND objet_formation_ouvert_aux_ia = TRUE
+                              AND objet_formation_ouvert_aux_ia = TRUE
                               --AND code_type_diplome='TYD020'
                               --AND code_periode='PER-2023'
                               ORDER BY code_periode, code_formation, chemin DESC) LOOP
 		--RAISE NOTICE 'UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = %, chemin_ancetre_ouvert_aux_ia = % WHERE chemin LIKE % AND code_periode = % AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL', r.id, r.chemin, r.chemin||'%', r.code_periode;
-        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin
-        WHERE
---        objet_formation_ouvert_aux_ia = FALSE AND
-        chemin LIKE r.chemin||'>%' AND code_periode = r.code_periode AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE objet_formation_ouvert_aux_ia = FALSE AND chemin LIKE r.chemin||'>%' AND code_periode = r.code_periode AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
     END LOOP;
 END $$;
 
@@ -1048,9 +1041,7 @@ SET niveau = NULL;
 
 UPDATE schema_pilotage.odf_objet_formation_chemin OFC
 SET niveau = concat(cursus_formation_bcn, niveau_sise_objet_formation)
-WHERE
--- objet_formation_ouvert_aux_ia = TRUE AND
-niveau IS NULL
+WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
     AND (cursus_formation_bcn IS NOT NULL AND niveau_sise_objet_formation IS NOT NULL);
     
     
