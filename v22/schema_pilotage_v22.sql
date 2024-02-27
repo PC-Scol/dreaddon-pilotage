@@ -832,10 +832,10 @@ SELECT
 	OFC.id_objet_formation,
 	OFI.code AS "code_objet_formation",
     
-    CASE  
-		WHEN PEM.pegase_code_etape IS NULL THEN FALSE
-		ELSE TRUE
-	END AS "objet_formation_ouvert_aux_ia",
+--    CASE  
+--		WHEN PEM.pegase_code_etape IS NULL THEN FALSE
+--		ELSE TRUE
+--	END AS "objet_formation_ouvert_aux_ia",
     
 	NULL AS id_ancetre_ouvert_aux_ia,
 	NULL AS "chemin_ancetre_ouvert_aux_ia",
@@ -909,7 +909,7 @@ SELECT
 FROM schema_pilotage.temp_odf_objet_formation_individuel_chemin OFC
 LEFT JOIN schema_pilotage.odf_formation F ON F.id = OFC.id_formation
 LEFT JOIN schema_pilotage.odf_objet_formation OFI ON OFI.id = OFC.id_objet_formation
-LEFT JOIN schema_uphf.pegase_etapes_mof PEM ON PEM.pegase_code_etape = OFI.code AND PEM.code_periode = F.code_periode
+-- LEFT JOIN schema_uphf.pegase_etapes_mof PEM ON PEM.pegase_code_etape = OFI.code AND PEM.code_periode = F.code_periode
 LEFT JOIN schema_ref.structure S1 ON S1.code = OFI.code_structure
 LEFT JOIN schema_ref.structure S2 ON S2.code = F.code_structure
 LEFT JOIN schema_pilotage.etab_structure_externe ESE1 ON ESE1.code_structure_externe = S1.code_referentiel_externe
