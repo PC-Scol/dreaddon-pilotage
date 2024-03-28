@@ -646,6 +646,25 @@ CREATE TABLE schema_pilotage.ref_type_formation AS
    FROM schema_ref.type_formation;
 
 
+
+
+CREATE TABLE schema_pilotage.ref_finalite_formation AS
+ SELECT val.id,
+    val.code_metier,
+    val.libelle_affichage,
+    val.libelle_court,
+    val.libelle_long,
+    val.date_debut_validite,
+    val.date_fin_validite,
+    val.priorite_affichage,
+    val.temoin_livre,
+    val.temoin_visible,
+    val.col1 AS code_bcn
+   FROM (schema_ref.valeurs_nomenclature val
+     JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
+  WHERE ((nom.code_nomenclature)::text = 'FinaliteFormation'::text);
+
+
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.ref_xxxxxxxxxxxxxxxxx'; END; $$;
 
 
@@ -800,6 +819,7 @@ SELECT
 
 FROM schema_odf.objet_maquette OM
 LEFT JOIN schema_odf.espace ESP ON ESP.id = OM.id_espace
+LEFT JOIN schema_odf.contexte CON ON CON.id_objet_maquette = OM.id
 LEFT JOIN schema_pilotage.ref_type_objet_formation RTOF ON RTOF.code = OM.code_type_objet_formation
 LEFT JOIN schema_pilotage.ref_type_formation RTF ON RTF.code = OM.code_type_formation
 --LEFT JOIN schema_mof.objet_formation_categorie FC ON FC.id = OFT.id_categorie
@@ -807,13 +827,67 @@ LEFT JOIN schema_ref.structure S ON S.code = OM.code_structure_principale
 LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe
 
 WHERE ESP.type_espace = 'P'
+    AND CON.temoin_valide=TRUE
     
     AND ESP.code NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
     
-ORDER BY ESP.code
-;
+GROUP BY
+    OM.id,
+	ESP.code,
+	ESP.libelle_long,
+    OM.code,
+    OM.libelle_court,
+    OM.libelle_long,
+    OM.description,
+	OM.code_diplome_sise,
+	OM.niveau_diplome_sise,
+	OM.code_parcours_type_sise,
+    "code_type",
+    "libelle_type",
+    "code_categorie",
+    "libelle_categorie",
+    OM.niveau_diplome_sise,
+--    OM.nb_inscriptions_autorisees,
+    OM.coefficient,
+    OM.temoin_mutualise,
+--    OM.temoin_titre_acces_necessaire,
+    OM.temoin_tele_enseignement,
+    OM.temoin_stage,
+    OM.capacite_accueil,
+    OM.code_structure_principale,
+    S.code_referentiel_externe,
+    ESE.libelle_structure_externe_web/*,
+    OM.date_contexte*/
+
+ORDER BY ESP.code;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_objet_formation'; END; $$;
 
+
+
+
+
+
+/* formats d'enseignement */
+/*CREATE TABLE schema_pilotage.odf_format_enseignement AS
+SELECT
+    id_formation,
+    id_formation_porteuse_charge,
+    id_objet_formation,
+    FETH.code AS "code_format",
+    FETH.libelle_court AS "libelle_court_format",
+    FETH.libelle_long AS "libelle_long_format",
+    equivalent_hetd,
+    volume_horaire_heure,
+    volume_horaire_minute,
+    nombre_theorique_groupes,
+    seuil_dedoublement,
+    code_modalite,
+    libelle_court_modalite,
+    libelle_long_modalite
+FROM schema_mof.format_enseignement FE,
+	schema_mof.format_enseignement_type_heure FETH
+WHERE FE.id = FETH.id_format_enseignement;*/
+	
 
 
 
@@ -1995,9 +2069,9 @@ SELECT
 	D.code AS "diplome_code",
 	D.version AS "diplome_version",
 	D.type_finalite_formation_code AS "diplome_type_finalite_formation_code",
-	D.type_finalite_formation_libelle_court AS "diplome_type_finalite_formation_libelle_court",
-	D.type_finalite_formation_libelle_long AS "diplome_type_finalite_formation_libelle_long",
-	D.type_finalite_formation_libelle_affichage AS "diplome_type_finalite_formation_libelle_affichage",
+	RFF.libelle_court AS "diplome_type_finalite_formation_libelle_court",
+	RFF.libelle_long AS "diplome_type_finalite_formation_libelle_long",
+	RFF.libelle_affichage AS "diplome_type_finalite_formation_libelle_affichage",
 	--D.date_contexte AS "diplome_date_contexte",
 	D.libelle_court AS "diplome_libelle_court",
 	D.intitule AS "diplome_intitule",
@@ -2024,13 +2098,14 @@ LEFT JOIN schema_coc.apprenant CA ON CA.id = AD.id_apprenant
 LEFT JOIN schema_pilotage.ins_apprenant APP ON APP.code_apprenant = CA.code
 LEFT JOIN schema_coc.periode P ON P.id = AD.id_periode
 LEFT JOIN schema_coc.diplome D ON D.id = AD.id_diplome
+LEFT JOIN schema_pilotage.ref_finalite_formation RFF ON RFF.code_metier = D.type_finalite_formation_code
 LEFT JOIN schema_coc.diplome_lien_objet_maquette DLOM ON DLOM.id_diplome = D.id
 LEFT JOIN schema_coc.apprenant_diplome_parchemin PAR ON PAR.id_apprenant_diplome = AD.id
 LEFT JOIN schema_coc.parametrage_parchemin PPAR ON PPAR.id_diplome = D.id
 LEFT JOIN schema_coc.modele M ON M.id = PPAR.id_modele
 
 GROUP BY APP.id,APP.code_apprenant,P.code,P.libelle_long,DLOM.code_objet_maquette,AD.id_diplome,AD.temoin_annulation_autorisation_impossible,AD.code_mention,AD.libelle_court_mention,AD.libelle_long_mention,AD.libelle_affichage_mention,AD.date_consommation_referentiel,
-AD.date_autorisation,AD.utilisateur_autorisation,AD.date_annulation_apres_edition,AD.utilisateur_annulation_apres_edition,AD.motif_annulation_apres_edition,D.code_structure_etablissement,D.code,D.version,D.type_finalite_formation_code,D.type_finalite_formation_libelle_court,D.type_finalite_formation_libelle_long,D.type_finalite_formation_libelle_affichage,
+AD.date_autorisation,AD.utilisateur_autorisation,AD.date_annulation_apres_edition,AD.utilisateur_annulation_apres_edition,AD.motif_annulation_apres_edition,D.code_structure_etablissement,D.code,D.version,D.type_finalite_formation_code,RFF.libelle_court,RFF.libelle_long,RFF.libelle_affichage,
 --D.date_contexte,
 D.libelle_court,D.intitule,
 --D.validite,
