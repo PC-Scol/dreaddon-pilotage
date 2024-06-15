@@ -1,3 +1,17 @@
+-- ****************************************************************************************************************************
+-- suppression des tables
+-- ****************************************************************************************************************************
+DO $$ DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'schema_pilotage') LOOP
+		RAISE NOTICE 'Suppression de la TABLE %', quote_ident(r.tablename);
+        EXECUTE 'DROP TABLE IF EXISTS schema_pilotage.' || quote_ident(r.tablename) || ' CASCADE';
+    END LOOP;
+END $$;
+
+-- ****************************************************************************************************************************
+
 /* table avec mails établissement */
 CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel
 (
