@@ -1,12 +1,21 @@
 -- ****************************************************************************************************************************
--- suppression des tables
+-- suppression des tables et des vues
 -- ****************************************************************************************************************************
 DO $$ DECLARE
     r RECORD;
 BEGIN
     FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'schema_pilotage') LOOP
-		RAISE NOTICE 'Suppression de la TABLE %', quote_ident(r.tablename);
+		RAISE NOTICE 'Supprime la TABLE %', quote_ident(r.tablename);
         EXECUTE 'DROP TABLE IF EXISTS schema_pilotage.' || quote_ident(r.tablename) || ' CASCADE';
+    END LOOP;
+END $$;
+
+DO $$ DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'schema_pilotage') LOOP
+		RAISE NOTICE 'Supprime la VIEW %', quote_ident(r.viewname);
+        EXECUTE 'DROP VIEW IF EXISTS schema_pilotage.' || quote_ident(r.viewname) || ' CASCADE';
     END LOOP;
 END $$;
 
@@ -22,7 +31,16 @@ CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel
 TABLESPACE pg_default;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel'; END; $$;
 
-
+/* table avec uid, mail établissement, etc. */
+CREATE TABLE IF NOT EXISTS schema_pilotage.etab_apprenant
+(
+    id_apprenant character varying(255) COLLATE pg_catalog."default",
+    uid character varying(50) COLLATE pg_catalog."default",
+    mail character varying(255) COLLATE pg_catalog."default",
+    CONSTRAINT etab_apprenant_pkey PRIMARY KEY (id_apprenant)
+)
+TABLESPACE pg_default;
+--DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_apprenant'; END; $$;
 
 /* table avec libellés structures externes */
 CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe
@@ -38,50 +56,6 @@ CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe
 )
 TABLESPACE pg_default;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe'; END; $$;
-
-
-
-/* suppression des tables */
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'schema_pilotage') LOOP
-		IF quote_ident(r.tablename) LIKE 'temp_%'
-			OR quote_ident(r.tablename) LIKE 'ref_%'
-			OR quote_ident(r.tablename) LIKE 'ins_%'
-			OR quote_ident(r.tablename) LIKE 'pai_%'
-			OR quote_ident(r.tablename) LIKE 'coc_%'
-			OR quote_ident(r.tablename) LIKE 'odf_%'
-		THEN
-			RAISE NOTICE 'Supprime la TABLE %', quote_ident(r.tablename);
-			EXECUTE 'DROP TABLE IF EXISTS schema_pilotage.' || quote_ident(r.tablename) || ' CASCADE';
-		END IF;
-    END LOOP;
-END $$;
---DO $$ BEGIN RAISE NOTICE 'DONE : suppression des tables'; END; $$;
-
-
-/* suppression des vues */
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'schema_pilotage') LOOP
-		IF quote_ident(r.viewname) LIKE 'ref_%'
-			OR quote_ident(r.viewname) LIKE 'ins_%'
-			OR quote_ident(r.viewname) LIKE 'pai_%'
-			OR quote_ident(r.tablename) LIKE 'coc_%'
-			OR quote_ident(r.tablename) LIKE 'odf_%'
-		THEN
-			RAISE NOTICE 'Supprime la VIEW %', quote_ident(r.viewname);
-			EXECUTE 'DROP VIEW IF EXISTS schema_pilotage.' || quote_ident(r.viewname) || ' CASCADE';
-		END IF;
-    END LOOP;
-END $$;
---DO $$ BEGIN RAISE NOTICE 'DONE : suppression des vues'; END; $$;
-
-
-
-
 
 /* ************************************************************************** */
 /* données du référentiel nécesaires */
@@ -662,7 +636,25 @@ CREATE TABLE schema_pilotage.ref_type_formation AS
 
 
 
-CREATE TABLE schema_pilotage.ref_finalite_formation AS
+CREATE TABLE schema_pilotage.ref_modalite_enseignement AS
+ SELECT val.id,
+    val.code_metier,
+    val.libelle_affichage,
+    val.libelle_court,
+    val.libelle_long,
+    val.date_debut_validite,
+    val.date_fin_validite,
+    val.priorite_affichage,
+    val.temoin_livre,
+    val.temoin_visible
+   FROM (schema_ref.valeurs_nomenclature val
+     JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
+  WHERE ((nom.code_nomenclature)::text = 'ModaliteEnseignement'::text);
+
+
+
+
+CREATE TABLE schema_pilotage.ref_type_heure AS
  SELECT val.id,
     val.code_metier,
     val.libelle_affichage,
@@ -673,10 +665,48 @@ CREATE TABLE schema_pilotage.ref_finalite_formation AS
     val.priorite_affichage,
     val.temoin_livre,
     val.temoin_visible,
-    val.col1 AS code_bcn
+    val.col1 AS equivalent_hetd
+   FROM (schema_ref.valeurs_nomenclature val
+     JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
+  WHERE ((nom.code_nomenclature)::text = 'TypeHeure'::text);
+
+
+
+
+CREATE TABLE schema_pilotage.ref_finalite_formation AS
+ SELECT val.id,
+    val.code_metier,
+    val.libelle_affichage,
+    val.libelle_court,
+    val.libelle_long,
+    val.date_debut_validite,
+    val.date_fin_validite,
+    val.priorite_affichage,
+    val.temoin_livre,
+    val.temoin_visible
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'FinaliteFormation'::text);
+
+
+
+
+CREATE TABLE schema_pilotage.ref_demande_piece AS
+ SELECT
+    code AS "code_metier",
+    libelle_affichage,
+    description,
+    temoin_primo,
+    temoin_reins,
+    mode_televersement,
+    temoin_obligatoire,
+    code_piece_a_fournir,
+    date_debut_validite,
+    date_fin_validite,
+    priorite_affichage,
+    temoin_livre,
+    temoin_photo
+   FROM schema_gestion.param_demande_piece;
 
 
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.ref_xxxxxxxxxxxxxxxxx'; END; $$;
@@ -721,24 +751,24 @@ SELECT
     RDF.libelle_long AS "libelle_domaine_formation",
     F.code_mention,
     RMD.libelle_long AS "libelle_mention",
-    /*F.nb_inscriptions_autorisees,
-    F.temoin_ouverte_a_inscription,
-    F.temoin_titre_acces_necessaire,*/
+    NULL AS "nb_inscriptions_autorisees",-- TODO F.nb_inscriptions_autorisees,
+    NULL AS "temoin_ouverte_a_inscription",-- TODO F.temoin_ouverte_a_inscription,
+    NULL AS "temoin_titre_acces_necessaire",-- TODO F.temoin_titre_acces_necessaire,
     F.temoin_tele_enseignement,
-    /*F.temoin_jamais_ouverte_a_inscription,
-    F.temoin_envoyee_a_inscription,
-    F.temoin_ouverte_choix_cursus,
-    F.temoin_jamais_ouverte_choix_cursus,*/
+    NULL AS "temoin_jamais_ouverte_a_inscription",-- TODO F.temoin_jamais_ouverte_a_inscription,
+    NULL AS "temoin_envoyee_a_inscription",-- TODO F.temoin_envoyee_a_inscription,
+    NULL AS "temoin_ouverte_choix_cursus",-- TODO F.temoin_ouverte_choix_cursus,
+    NULL AS "temoin_jamais_ouverte_choix_cursus",-- TODO F.temoin_jamais_ouverte_choix_cursus,
     F.credit_ects,
-    /*F.code_structure_budgetaire,
-    F.code_uai_structure_budgetaire,
-    F.code_referentiel_externe_structure_budgetaire,
-    F.denomination_principale_structure_budgetaire,
-    F.code_tarification,*/
+    NULL AS "code_structure_budgetaire",-- TODO F.code_structure_budgetaire,
+    NULL AS "code_uai_structure_budgetaire",-- TODO F.code_uai_structure_budgetaire,
+    NULL AS "code_referentiel_externe_structure_budgetaire",-- TODO F.code_referentiel_externe_structure_budgetaire,
+    NULL AS "denomination_principale_structure_budgetaire",-- TODO F.denomination_principale_structure_budgetaire,
+    NULL AS "code_tarification",-- TODO F.code_tarification,
     F.code_structure_principale AS "code_structure",
     S.code_referentiel_externe AS "code_structure_externe",
-    ESE.libelle_structure_externe_web AS "libelle_structure_externe"/*,
-    F.date_contexte*/
+    ESE.libelle_structure_externe_web AS "libelle_structure_externe",
+    NULL AS "date_contexte"-- TODO F.date_contexte
 
 FROM schema_odf.objet_maquette F
 LEFT JOIN schema_odf.espace ESP ON ESP.id = F.id_espace
@@ -764,7 +794,7 @@ WHERE F.type_objet_maquette = 'F'
 
 
 
-/* liste des régimes d'inscriptions pour formations */
+/* liste des régimes d'inscriptions pour formations TODO faire table pour avoir lien objet de formation / régimes */
 /*CREATE TABLE schema_pilotage.odf_formation_regime_inscription AS
 SELECT 
     FRI.*,
@@ -819,17 +849,18 @@ SELECT
 		ELSE NULL
 	END AS "libelle_categorie",
     OM.niveau_diplome_sise as "niveau_sise",
---    OM.nb_inscriptions_autorisees,
+    NULL AS "nb_inscriptions_autorisees",-- TODO OM.nb_inscriptions_autorisees,
     OM.coefficient,
     OM.temoin_mutualise,
---    OM.temoin_titre_acces_necessaire,
+    NULL AS "temoin_titre_acces_necessaire",-- TODO OM.temoin_titre_acces_necessaire,
     OM.temoin_tele_enseignement,
     OM.temoin_stage,
     OM.capacite_accueil,
     OM.code_structure_principale AS "code_structure",
     S.code_referentiel_externe AS "code_structure_externe",
-    ESE.libelle_structure_externe_web AS "libelle_structure_externe"/*,
-    OM.date_contexte*/
+    ESE.libelle_structure_externe_web AS "libelle_structure_externe",
+    OM.id_formation_porteuse,
+    NULL AS "date_contexte"-- TODO OM.date_contexte
 
 FROM schema_odf.objet_maquette OM
 LEFT JOIN schema_odf.espace ESP ON ESP.id = OM.id_espace
@@ -861,46 +892,21 @@ GROUP BY
     "code_categorie",
     "libelle_categorie",
     OM.niveau_diplome_sise,
---    OM.nb_inscriptions_autorisees,
+-- TODO    OM.nb_inscriptions_autorisees,
     OM.coefficient,
     OM.temoin_mutualise,
---    OM.temoin_titre_acces_necessaire,
+-- TODO    OM.temoin_titre_acces_necessaire,
     OM.temoin_tele_enseignement,
     OM.temoin_stage,
     OM.capacite_accueil,
     OM.code_structure_principale,
     S.code_referentiel_externe,
-    ESE.libelle_structure_externe_web/*,
-    OM.date_contexte*/
+    ESE.libelle_structure_externe_web,
+    OM.id_formation_porteuse/*,
+    TODO OM.date_contexte*/
 
 ORDER BY ESP.code;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_objet_formation'; END; $$;
-
-
-
-
-
-
-/* formats d'enseignement */
-/*CREATE TABLE schema_pilotage.odf_format_enseignement AS
-SELECT
-    id_formation,
-    id_formation_porteuse_charge,
-    id_objet_formation,
-    FETH.code AS "code_format",
-    FETH.libelle_court AS "libelle_court_format",
-    FETH.libelle_long AS "libelle_long_format",
-    equivalent_hetd,
-    volume_horaire_heure,
-    volume_horaire_minute,
-    nombre_theorique_groupes,
-    seuil_dedoublement,
-    code_modalite,
-    libelle_court_modalite,
-    libelle_long_modalite
-FROM schema_mof.format_enseignement FE,
-	schema_mof.format_enseignement_type_heure FETH
-WHERE FE.id = FETH.id_format_enseignement;*/
 	
 
 
@@ -936,10 +942,10 @@ SELECT
 	OM.code_categorie AS "code_categorie_objet_formation",
     OM.niveau_diplome_sise AS "niveau_sise_objet_formation",
 	OM.libelle_categorie AS "libelle_categorie_objet_formation",
---	OM.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_objet_formation",
+	OM.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_objet_formation",
 	OM.coefficient AS "coefficient_objet_formation",
 	OM.temoin_mutualise AS "temoin_mutualise_objet_formation",
---	OM.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire_objet_formation",
+	OM.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire_objet_formation",
 	OM.temoin_tele_enseignement AS "temoin_tele_enseignement_objet_formation",
 	OM.temoin_stage AS "temoin_stage_objet_formation",
 	OM.capacite_accueil AS "capacite_accueil_objet_formation",
@@ -947,6 +953,7 @@ SELECT
     S1.code_referentiel_externe AS "code_structure_externe_objet_formation",
     ESE1.libelle_structure_externe_web AS "libelle_structure_externe_objet_formation",
 	
+    OM.id_formation_porteuse,
 	F.id AS "id_formation",
 	F.code AS "code_formation",
 	F.libelle_court AS "libelle_court_formation",
@@ -980,20 +987,20 @@ SELECT
     FALSE AS "sous_convention",
     NULL AS "sous_convention_etablissement",
     
---	F.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_formation",
---	F.temoin_ouverte_a_inscription AS "temoin_ouverte_a_inscription",
---	F.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire",
+	F.nb_inscriptions_autorisees AS "nb_inscriptions_autorisees_formation",
+	F.temoin_ouverte_a_inscription AS "temoin_ouverte_a_inscription",
+	F.temoin_titre_acces_necessaire AS "temoin_titre_acces_necessaire",
 	F.temoin_tele_enseignement AS "temoin_tele_enseignement",
---	F.temoin_jamais_ouverte_a_inscription AS "temoin_jamais_ouverte_a_inscription",
---	F.temoin_envoyee_a_inscription AS "temoin_envoyee_a_inscription",
---	F.temoin_ouverte_choix_cursus AS "temoin_ouverte_choix_cursus",
---	F.temoin_jamais_ouverte_choix_cursus AS "temoin_jamais_ouverte_choix_cursus",
+	F.temoin_jamais_ouverte_a_inscription AS "temoin_jamais_ouverte_a_inscription",
+	F.temoin_envoyee_a_inscription AS "temoin_envoyee_a_inscription",
+	F.temoin_ouverte_choix_cursus AS "temoin_ouverte_choix_cursus",
+	F.temoin_jamais_ouverte_choix_cursus AS "temoin_jamais_ouverte_choix_cursus",
 	F.credit_ects AS "credit_ects_formation",
---	F.code_structure_budgetaire AS "code_structure_budgetaire_formation",
---	F.code_uai_structure_budgetaire AS "code_uai_structure_budgetaire_formation",
---	F.code_referentiel_externe_structure_budgetaire AS "code_referentiel_externe_structure_budgetaire_formation",
---	F.denomination_principale_structure_budgetaire AS "denomination_principale_structure_budgetaire_formation",
---	F.code_tarification AS "code_tarification_formation",
+	F.code_structure_budgetaire AS "code_structure_budgetaire_formation",
+	F.code_uai_structure_budgetaire AS "code_uai_structure_budgetaire_formation",
+	F.code_referentiel_externe_structure_budgetaire AS "code_referentiel_externe_structure_budgetaire_formation",
+	F.denomination_principale_structure_budgetaire AS "denomination_principale_structure_budgetaire_formation",
+	F.code_tarification AS "code_tarification_formation",
 	F.code_structure AS "code_structure_formation",
     S2.code_referentiel_externe AS "code_structure_externe_formation",
     ESE2.libelle_structure_externe_web AS "libelle_structure_externe_formation"
@@ -1023,16 +1030,17 @@ GROUP BY
     OM.libelle_type,
     OM.code_categorie,
     OM.libelle_categorie,
---    OM.nb_inscriptions_autorisees,
+    OM.nb_inscriptions_autorisees,
     OM.coefficient,
     OM.temoin_mutualise,
---    OM.temoin_titre_acces_necessaire,
+    OM.temoin_titre_acces_necessaire,
     OM.temoin_tele_enseignement,
     OM.temoin_stage,
     OM.capacite_accueil,
     OM.code_structure,
     S1.code_referentiel_externe,
     ESE1.libelle_structure_externe_web,
+    OM.id_formation_porteuse,
     F.id,
     F.code,
     F.libelle_court,
@@ -1061,20 +1069,20 @@ GROUP BY
     F.libelle_domaine_formation,
     F.code_mention,
     F.libelle_mention,
---    F.nb_inscriptions_autorisees,
---    F.temoin_ouverte_a_inscription,
---    F.temoin_titre_acces_necessaire,
+    F.nb_inscriptions_autorisees,
+    F.temoin_ouverte_a_inscription,
+    F.temoin_titre_acces_necessaire,
     F.temoin_tele_enseignement,
---    F.temoin_jamais_ouverte_a_inscription,
---    F.temoin_envoyee_a_inscription,
---    F.temoin_ouverte_choix_cursus,
---    F.temoin_jamais_ouverte_choix_cursus,
+    F.temoin_jamais_ouverte_a_inscription,
+    F.temoin_envoyee_a_inscription,
+    F.temoin_ouverte_choix_cursus,
+    F.temoin_jamais_ouverte_choix_cursus,
     F.credit_ects,
---    F.code_structure_budgetaire,
---    F.code_uai_structure_budgetaire,
---    F.code_referentiel_externe_structure_budgetaire,
---    F.denomination_principale_structure_budgetaire,
---    F.code_tarification,
+    F.code_structure_budgetaire,
+    F.code_uai_structure_budgetaire,
+    F.code_referentiel_externe_structure_budgetaire,
+    F.denomination_principale_structure_budgetaire,
+    F.code_tarification,
     F.code_structure,
     S2.code_referentiel_externe,
     ESE2.libelle_structure_externe_web
@@ -1156,6 +1164,41 @@ UPDATE schema_pilotage.odf_objet_formation_chemin OFC
 SET niveau = concat(cursus_formation_bcn, niveau_sise_objet_formation)
 WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
     AND (cursus_formation_bcn IS NOT NULL AND niveau_sise_objet_formation IS NOT NULL);*/
+
+
+
+
+
+
+/* formats d'enseignement */
+CREATE TABLE schema_pilotage.odf_format_enseignement AS
+SELECT
+    OFC.id_formation,
+	OFC.id_formation_porteuse AS "id_formation_porteuse_charge",
+    FE.id_objet_maquette AS "id_objet_formation",
+    FE.type_heure AS "code_format",
+    RTH.libelle_court AS "libelle_court_format",
+    RTH.libelle_long AS "libelle_long_format",
+	
+    CAST (RTH.equivalent_hetd AS NUMERIC),
+	
+	FE.volume_horaire,
+	CAST (FE.volume_horaire/60/60 AS INTEGER) AS volume_horaire_heure,
+	CAST (FE.volume_horaire - (FE.volume_horaire/60/60)*(60*60) AS INTEGER) AS volume_horaire_minute,
+    FE.nombre_theorique_groupe AS "nombre_theorique_groupes",
+    FE.seuil_dedoublement,
+    FE.modalite AS "code_modalite",
+    RME.libelle_court AS "libelle_court_modalite",
+    RME.libelle_long AS "libelle_long_modalite"
+	
+FROM schema_odf.formats_enseignement FE,
+	schema_pilotage.ref_modalite_enseignement RME,
+	schema_pilotage.ref_type_heure RTH,
+	schema_pilotage.odf_objet_formation_chemin OFC
+	
+WHERE  FE.modalite = RME.code_metier
+AND FE.type_heure = RTH.code_metier
+AND OFC.id_objet_formation = FE.id_objet_maquette;
     
     
 
@@ -1166,38 +1209,139 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 
 
 /* ADMIS avec inscription en cours */
+/* TODO DONE la modifier pour aller compléter les infos depuis ins_piste ! */
 CREATE TABLE schema_pilotage.ins_admis AS
  SELECT admis.id AS "id",
 	admis.numero_admis AS "numero_candidat",
     APP.id::varchar(255) AS "id_apprenant",
-    APP.code_apprenant,
+	CASE  
+		WHEN APP.code_apprenant IS NOT NULL THEN APP.code_apprenant
+		ELSE IPAPP.code_apprenant
+	END AS "code_apprenant",
     admis.ine,
     admis.ine_statut AS "statut_ine",
-    admis.nom_naissance AS "nom_famille",
-    admis.nom_usuel,
-    admis.prenom,
-    admis.prenom2,
-    admis.prenom3,
-    admis.genre AS "sexe",
+	CASE  
+		WHEN IPAPP.nom_famille IS NOT NULL THEN IPAPP.nom_famille
+		ELSE admis.nom_naissance
+	END AS "nom_famille",
+	CASE  
+		WHEN IPAPP.nom_usuel IS NOT NULL THEN IPAPP.nom_usuel
+		ELSE admis.nom_usuel
+	END AS "nom_usuel",
+	CASE  
+		WHEN IPAPP.prenom IS NOT NULL THEN IPAPP.prenom
+		ELSE admis.prenom
+	END AS "prenom",
+	CASE  
+		WHEN IPAPP.prenom2 IS NOT NULL THEN IPAPP.prenom2
+		ELSE admis.prenom2
+	END AS "prenom2",
+	CASE  
+		WHEN IPAPP.prenom3 IS NOT NULL THEN IPAPP.prenom3
+		ELSE admis.prenom3
+	END AS "prenom3",
+	CASE  
+		WHEN IPAPP.sexe IS NOT NULL THEN IPAPP.sexe
+		ELSE admis.genre
+	END AS "sexe",
     admis.date_naissance,
     admis.code_pays_naissance,
     P1.libelle_long AS "libelle_pays_naissance",
     admis.code_commune_naissance,
     schema_pilotage.ref_commune_insee.libelle_long AS "libelle_commune_naissance",
+	IPAPP.libelle_commune_naissance_etranger,
     admis.code_nationalite,
     P2.libelle_long AS "libelle_nationalite",
+    IPAPP.annee_obtention_bac,
+    IPAPP.code_type_ou_serie_bac,
+    IPAPP.code_mention_bac,
+    IPAPP.type_etablissement_bac,
+    IPAPP.code_pays_bac,
+    IPAPP.code_departement_bac,
+    IPAPP.code_etablissement_bac,
+    IPAPP.etablissement_libre_bac,
+    IPAPP.precisions_titre_dispense_bac,
+    IPAPP.annee_entree_enseignement_superieur,
+    IPAPP.annee_entree_universite,
+    IPAPP.annee_entree_etablissement,
+    IPAPP.code_categorie_socioprofessionnelle,
+    IPAPP.code_quotite_travaillee,
+    IPAPP.code_categorie_socioprofessionnelle_parent1,
+    IPAPP.code_categorie_socioprofessionnelle_parent2,
+    IPAPP.code_situation_familiale,
+    IPAPP.nombre_enfants,
+    IPAPP.code_situation_militaire,
+    IPAPP.code_premiere_specialite_bac,
+    IPAPP.code_deuxieme_specialite_bac,
+    IPAPP.temoin_neo_bachelier,
     ADMS.statut AS "statut_admission",
-    adresse_code_pays,
-    adresse_ligne1_etage,
-    adresse_ligne2_batiment,
-    adresse_ligne3_voie,
-    adresse_ligne4_complement,
-    adresse_code_postal,
-    adresse_code_commune,
-    adresse_ligne5_etranger,
-    telephone1,
-    telephone2,
-    mail,
+	CASE  
+		WHEN IPC.adresse_annuelle_code_pays IS NOT NULL THEN IPC.adresse_annuelle_code_pays
+		ELSE admis.adresse_code_pays
+	END AS "adresse_code_pays",
+	CASE  
+		WHEN IPC.adresse_annuelle_ligne1_ou_etage IS NOT NULL THEN IPC.adresse_annuelle_ligne1_ou_etage
+		ELSE admis.adresse_ligne1_etage
+	END AS "adresse_ligne1_etage",
+	CASE  
+		WHEN IPC.adresse_annuelle_ligne2_ou_batiment IS NOT NULL THEN IPC.adresse_annuelle_ligne2_ou_batiment
+		ELSE admis.adresse_ligne2_batiment
+	END AS "adresse_ligne2_batiment",
+	CASE  
+		WHEN IPC.adresse_annuelle_ligne3_ou_voie IS NOT NULL THEN IPC.adresse_annuelle_ligne3_ou_voie
+		ELSE admis.adresse_ligne3_voie
+	END AS "adresse_ligne3_voie",
+	CASE  
+		WHEN IPC.adresse_annuelle_ligne4_ou_complement IS NOT NULL THEN IPC.adresse_annuelle_ligne4_ou_complement
+		ELSE admis.adresse_ligne4_complement
+	END AS "adresse_ligne4_complement",
+	CASE  
+		WHEN IPC.adresse_annuelle_code_postal IS NOT NULL THEN IPC.adresse_annuelle_code_postal
+		ELSE admis.adresse_code_postal
+	END AS "adresse_code_postal",
+	CASE  
+		WHEN IPC.adresse_annuelle_code_commune IS NOT NULL THEN IPC.adresse_annuelle_code_commune
+		ELSE admis.adresse_code_commune
+	END AS "adresse_code_commune",
+	CASE  
+		WHEN IPC.adresse_annuelle_ligne5_etranger IS NOT NULL THEN IPC.adresse_annuelle_ligne5_etranger
+		ELSE admis.adresse_ligne5_etranger
+	END AS "adresse_ligne5_etranger",
+    
+    IPC.adresse_fixe_code_postal,
+    IPC.adresse_fixe_code_commune,
+    IPC.adresse_fixe_libelle_commune,
+    IPC.adresse_fixe_ligne1_ou_etage,
+    IPC.adresse_fixe_ligne2_ou_batiment,
+    IPC.adresse_fixe_ligne3_ou_voie,
+    IPC.adresse_fixe_ligne4_ou_complement,
+    IPC.adresse_fixe_ligne5_etranger,
+    IPC.adresse_fixe_code_pays,
+    IPC.adresse_fixe_libelle_pays,
+
+    IPC.adresse_annuelle_code_postal,
+    IPC.adresse_annuelle_code_commune,
+    IPC.adresse_annuelle_libelle_commune,
+    IPC.adresse_annuelle_ligne1_ou_etage,
+    IPC.adresse_annuelle_ligne2_ou_batiment,
+    IPC.adresse_annuelle_ligne3_ou_voie,
+    IPC.adresse_annuelle_ligne4_ou_complement,
+    IPC.adresse_annuelle_ligne5_etranger,
+    IPC.adresse_annuelle_code_pays,
+    IPC.adresse_annuelle_libelle_pays,
+    
+	CASE  
+		WHEN IPC.telephone_urgence IS NOT NULL THEN IPC.telephone_urgence
+		ELSE admis.telephone1
+	END AS "telephone1",
+	CASE  
+		WHEN IPC.telephone_perso IS NOT NULL THEN IPC.telephone_perso
+		ELSE admis.telephone2
+	END AS "telephone2",
+	CASE  
+		WHEN IPC.mail_perso IS NOT NULL THEN IPC.mail_perso
+		ELSE admis.mail
+	END AS "mail",
     admis.date_creation AS "date_de_creation",
     admis.date_modification AS "date_de_modification"
 
@@ -1207,11 +1351,18 @@ CREATE TABLE schema_pilotage.ins_admis AS
    LEFT JOIN schema_pilotage.ref_commune_insee ON schema_pilotage.ref_commune_insee.code_insee = admis.code_commune_naissance
    LEFT JOIN schema_inscription.admission ADMS ON ADMS.id_admis = admis.id
    LEFT JOIN schema_gestion.apprenant APP ON APP.ine = admis.ine
+   LEFT JOIN schema_ins_piste.apprenant IPAPP ON (IPAPP.ine = admis.ine OR IPAPP.code_apprenant=APP.code_apprenant)
+   LEFT JOIN schema_ins_piste.contacts IPC ON IPC.code_apprenant = IPAPP.code_apprenant
    
-   GROUP BY admis.id,"numero_candidat","id_apprenant",APP.code_apprenant,admis.ine,"statut_ine","nom_famille",
-admis.nom_usuel,admis.prenom,admis.prenom2,admis.prenom3,"sexe",admis.date_naissance,admis.code_pays_naissance,"libelle_pays_naissance",admis.code_commune_naissance,schema_pilotage.ref_commune_insee.libelle_long,
-admis.code_nationalite,"libelle_nationalite","statut_admission",adresse_code_pays,adresse_ligne1_etage,adresse_ligne2_batiment,adresse_ligne3_voie,adresse_ligne4_complement,adresse_code_postal,
-adresse_code_commune,adresse_ligne5_etranger,telephone1,telephone2,mail,"date_de_creation","date_de_modification";
+--   WHERE admis.ine = '233170970FF'
+   
+   GROUP BY admis.id,"numero_candidat",APP.id,APP.code_apprenant,IPAPP.code_apprenant,admis.ine,admis.ine_statut,IPAPP.nom_famille,admis.nom_naissance,
+IPAPP.nom_usuel,admis.nom_usuel,IPAPP.prenom,admis.prenom,IPAPP.prenom2,admis.prenom2,IPAPP.prenom3,admis.prenom3,IPAPP.sexe,admis.genre,admis.date_naissance,admis.code_pays_naissance,"libelle_pays_naissance",admis.code_commune_naissance,schema_pilotage.ref_commune_insee.libelle_long,IPAPP.libelle_commune_naissance_etranger,
+admis.code_nationalite,"libelle_nationalite",IPAPP.annee_obtention_bac,IPAPP.code_type_ou_serie_bac,IPAPP.code_mention_bac,IPAPP.type_etablissement_bac,IPAPP.code_pays_bac,IPAPP.code_departement_bac,IPAPP.code_etablissement_bac,IPAPP.etablissement_libre_bac,IPAPP.precisions_titre_dispense_bac,IPAPP.annee_entree_enseignement_superieur,IPAPP.annee_entree_universite,
+IPAPP.annee_entree_etablissement,IPAPP.code_categorie_socioprofessionnelle,IPAPP.code_quotite_travaillee,IPAPP.code_categorie_socioprofessionnelle_parent1,IPAPP.code_categorie_socioprofessionnelle_parent2,IPAPP.code_situation_familiale,IPAPP.nombre_enfants,IPAPP.code_situation_militaire,IPAPP.code_premiere_specialite_bac,IPAPP.code_deuxieme_specialite_bac,
+IPAPP.temoin_neo_bachelier,"statut_admission",IPC.adresse_fixe_code_postal,IPC.adresse_fixe_code_commune,IPC.adresse_fixe_libelle_commune,IPC.adresse_fixe_ligne1_ou_etage,IPC.adresse_fixe_ligne2_ou_batiment,IPC.adresse_fixe_ligne3_ou_voie,IPC.adresse_fixe_ligne4_ou_complement,
+IPC.adresse_fixe_ligne5_etranger,IPC.adresse_fixe_code_pays,IPC.adresse_fixe_libelle_pays,IPC.adresse_annuelle_code_pays,adresse_code_pays,IPC.adresse_annuelle_ligne1_ou_etage,adresse_ligne1_etage,IPC.adresse_annuelle_ligne2_ou_batiment,adresse_ligne2_batiment,IPC.adresse_annuelle_ligne3_ou_voie,adresse_ligne3_voie,IPC.adresse_annuelle_ligne4_ou_complement,adresse_ligne4_complement,IPC.adresse_annuelle_code_postal,adresse_code_postal,
+IPC.adresse_annuelle_code_commune,IPC.adresse_annuelle_libelle_pays,IPC.adresse_annuelle_libelle_commune,adresse_code_commune,IPC.adresse_annuelle_ligne5_etranger,adresse_ligne5_etranger,IPC.telephone_urgence,telephone1,IPC.telephone_perso,telephone2,IPC.mail_perso,mail,"date_de_creation","date_de_modification";
    
    
 
@@ -1299,7 +1450,7 @@ CREATE TABLE schema_pilotage.ins_apprenant AS
    (SELECT 
 	CASE  
 		WHEN id_apprenant IS NOT NULL THEN id_apprenant::varchar(255)
-		ELSE id::varchar(255)
+		ELSE ins_admis.id::varchar(255)
 	END AS "id",
     code_apprenant,
     ine,
@@ -1315,58 +1466,73 @@ CREATE TABLE schema_pilotage.ins_apprenant AS
     libelle_pays_naissance,
     code_commune_naissance,
     libelle_commune_naissance,
-    NULL AS "libelle_commune_naissance_etranger",
+    libelle_commune_naissance_etranger,
     code_nationalite,
     libelle_nationalite,
     NULL AS "code_nationalite2",
     NULL AS "libelle_nationalite2",
-    NULL AS "annee_obtention_bac",
-    NULL AS "code_type_ou_serie_bac",
-    NULL AS "libelle_type_ou_serie_bac",
-    NULL AS "code_mention_bac",
-    NULL AS "libelle_mention_bac",
-    NULL AS "type_etablissement_bac",
-    NULL AS "code_pays_bac",
-    NULL AS "libelle_pays_bac",
-    NULL AS "code_departement_bac",
-    NULL AS "libelle_departement_bac",
-    NULL AS "code_etablissement_bac",
-    NULL AS "libelle_etablissement_bac",
-    NULL AS "etablissement_libre_bac",
+    annee_obtention_bac,
+    code_type_ou_serie_bac,
+    ref_serie_bac.libelle_long AS "libelle_type_ou_serie_bac",
+    code_mention_bac,
+    schema_pilotage.ref_mention_bac.libelle_long AS "libelle_mention_bac",
+    type_etablissement_bac,
+    code_pays_bac,
+    P4.libelle_long AS "libelle_pays_bac",
+    code_departement_bac,
+    UPPER(D.libelle_affichage) AS "libelle_departement_bac",
+    code_etablissement_bac,
+    UPPER(EF.libelle_affichage) AS "libelle_etablissement_bac",
+    etablissement_libre_bac,
     NULL AS "precision_titre_dispense_bac",
-    NULL AS "annee_entree_enseignement_superieur",
-    NULL AS "annee_entree_universite",
-    NULL AS "annee_entree_etablissement",
-    NULL AS "code_categorie_socioprofessionnelle",
-    NULL AS "libelle_categorie_socioprofessionnelle",
-    NULL AS "code_quotite_travaillee",
-    NULL AS "libelle_quotite_travaillee",
-    NULL AS "code_categorie_socioprofessionnelle_parent1",
-    NULL AS "libelle_socioprofessionnelle_parent1",
-    NULL AS "code_categorie_socioprofessionnelle_parent2",
-    NULL AS "libelle_socioprofessionnelle_parent2",
-    NULL AS "code_situation_familiale",
-    NULL AS "libelle_situation_familiale",
-    NULL AS "nombre_enfants",
-    NULL AS "code_situation_militaire",
-    NULL AS "libelle_situation_militaire",
-    NULL AS "code_premiere_specialite_bac",
-    NULL AS "libelle_premiere_specialite_bac",
-    NULL AS "code_deuxieme_specialite_bac",
-    NULL AS "libelle_deuxieme_specialite_bac",
+    annee_entree_enseignement_superieur,
+    annee_entree_universite,
+    annee_entree_etablissement,
+    code_categorie_socioprofessionnelle,
+    CSP1.libelle_long AS "libelle_categorie_socioprofessionnelle",
+    code_quotite_travaillee,
+    QA.libelle_long AS "libelle_quotite_travaillee",
+    code_categorie_socioprofessionnelle_parent1,
+    CSP2.libelle_long AS "libelle_socioprofessionnelle_parent1",
+    code_categorie_socioprofessionnelle_parent2,
+    CSP3.libelle_long AS "libelle_socioprofessionnelle_parent2",
+    code_situation_familiale,
+    SF.libelle_long AS "libelle_situation_familiale",
+    nombre_enfants,
+    code_situation_militaire,
+    SM.libelle_long AS "libelle_situation_militaire",
+    code_premiere_specialite_bac,
+    SP1.libelle_long AS "libelle_premiere_specialite_bac",
+    code_deuxieme_specialite_bac,
+    SP2.libelle_long AS "libelle_deuxieme_specialite_bac",
     date_de_creation,
     date_de_modification
 
    FROM schema_pilotage.ins_admis
    
-   WHERE statut_admission= 'AU'/* Admission utilisée donc il existe un début de dossier dans CDI */
+   LEFT JOIN schema_pilotage.ref_serie_bac ON schema_pilotage.ref_serie_bac.code = ins_admis.code_type_ou_serie_bac
+   LEFT JOIN schema_pilotage.ref_mention_bac ON schema_pilotage.ref_mention_bac.code_metier = ins_admis.code_mention_bac
+   LEFT JOIN schema_pilotage.ref_pays_nationalite P4 ON P4.code = ins_admis.code_pays_bac
+   LEFT JOIN schema_pilotage.ref_departement D ON D.code = ins_admis.code_departement_bac
+   LEFT JOIN schema_pilotage.ref_etablissement_francais EF ON EF.code = ins_admis.code_etablissement_bac
+   LEFT JOIN schema_pilotage.ref_categorie_socioprofessionnelle CSP1 ON CSP1.code = ins_admis.code_categorie_socioprofessionnelle
+   LEFT JOIN schema_pilotage.ref_categorie_socioprofessionnelle CSP2 ON CSP2.code = ins_admis.code_categorie_socioprofessionnelle_parent1
+   LEFT JOIN schema_pilotage.ref_categorie_socioprofessionnelle CSP3 ON CSP3.code = ins_admis.code_categorie_socioprofessionnelle_parent2
+   LEFT JOIN schema_pilotage.ref_situation_militaire SM ON SM.code_metier = ins_admis.code_situation_militaire
+   LEFT JOIN schema_pilotage.ref_situation_familiale SF ON SF.code_metier = ins_admis.code_situation_familiale
+   LEFT JOIN schema_pilotage.ref_quotite_activite QA ON QA.code_metier = ins_admis.code_quotite_travaillee
+   LEFT JOIN schema_pilotage.ref_specialites_bac SP1 ON SP1.code_metier = ins_admis.code_premiere_specialite_bac
+   LEFT JOIN schema_pilotage.ref_specialites_bac SP2 ON SP2.code_metier = ins_admis.code_deuxieme_specialite_bac
+   
+   WHERE (statut_admission= 'AU'/* Admission utilisée donc il existe un début de dossier dans CDI */ OR temoin_neo_bachelier IS NOT NULL)
+--   AND ine = '233170970FF'
    AND code_apprenant NOT IN (SELECT code_apprenant FROM schema_gestion.apprenant));
 
 
 
-
+/* TODO DONE TESTER la modifier pour aller compléter les infos depuis ins_piste ! */
 CREATE TABLE schema_pilotage.ins_bourse_aide_financiere AS
- SELECT bourse_ou_aide_financiere.id_inscription::varchar(255),
+ (SELECT bourse_ou_aide_financiere.id_inscription::varchar(255),
     bourse_ou_aide_financiere.code,
     bourse_ou_aide_financiere.code_bcn,
     /*bourse_ou_aide_financiere.libelle_court,
@@ -1375,29 +1541,65 @@ CREATE TABLE schema_pilotage.ins_bourse_aide_financiere AS
     BAF.libelle_long,
     '' AS type
    FROM schema_gestion.bourse_ou_aide_financiere
-   LEFT JOIN schema_pilotage.ref_bourse_aide_financiere BAF ON BAF.code_metier=bourse_ou_aide_financiere.code;
+   LEFT JOIN schema_pilotage.ref_bourse_aide_financiere BAF ON BAF.code_metier=bourse_ou_aide_financiere.code)
+   
+   UNION
+   
+   (SELECT bourse_ou_aide_financiere.id_inscription::varchar(255),
+    bourse_ou_aide_financiere.code,
+    bourse_ou_aide_financiere.code_bcn,
+    /*bourse_ou_aide_financiere.libelle_court,
+    bourse_ou_aide_financiere.libelle_long,*/
+    BAF.libelle_court,
+    BAF.libelle_long,
+    '' AS type
+   FROM schema_ins_piste.bourse_ou_aide_financiere
+   LEFT JOIN schema_pilotage.ref_bourse_aide_financiere BAF ON BAF.code_metier=bourse_ou_aide_financiere.code)
+   ;
 
 
 
 
+
+/* TODO DONE TESTER la modifier pour aller compléter les infos depuis ins_piste ! */
 CREATE TABLE schema_pilotage.ins_amenagement_specifique AS
- SELECT amenagement_specifique.id_inscription::varchar(255),
+ (SELECT amenagement_specifique.id_inscription::varchar(255),
     amenagement_specifique.code,
     RSE.libelle_court,
     RSE.libelle_long
    FROM schema_gestion.amenagement_specifique
-   LEFT JOIN schema_pilotage.ref_regime_special_etudes RSE ON RSE.code_metier=amenagement_specifique.code;
+   LEFT JOIN schema_pilotage.ref_regime_special_etudes RSE ON RSE.code_metier=amenagement_specifique.code)
+   
+   UNION
+
+ (SELECT amenagement_specifique.id_inscription::varchar(255),
+    amenagement_specifique.code,
+    RSE.libelle_court,
+    RSE.libelle_long
+   FROM schema_ins_piste.amenagement_specifique
+   LEFT JOIN schema_pilotage.ref_regime_special_etudes RSE ON RSE.code_metier=amenagement_specifique.code)
+   ;
 
 
 
-
+/* TODO DONE TESTER la modifier pour aller compléter les infos depuis ins_piste ! */
 CREATE TABLE schema_pilotage.ins_profil_specifique AS
- SELECT profil_specifique.id_inscription::varchar(255),
+ (SELECT profil_specifique.id_inscription::varchar(255),
     profil_specifique.code,
     PRF.libelle_court,
     PRF.libelle_long
    FROM schema_gestion.profil_specifique
-   LEFT JOIN schema_pilotage.ref_profil_exonerant PRF ON PRF.code_metier=profil_specifique.code;
+   LEFT JOIN schema_pilotage.ref_profil_exonerant PRF ON PRF.code_metier=profil_specifique.code)
+   
+   UNION
+
+ (SELECT profil_specifique.id_inscription::varchar(255),
+    profil_specifique.code,
+    PRF.libelle_court,
+    PRF.libelle_long
+   FROM schema_ins_piste.profil_specifique
+   LEFT JOIN schema_pilotage.ref_profil_exonerant PRF ON PRF.code_metier=profil_specifique.code)
+   ;
 
 
 
@@ -1529,18 +1731,44 @@ UNION
 	LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = ins_admis.adresse_code_pays
 	LEFT JOIN schema_pilotage.ref_commune_insee ON schema_pilotage.ref_commune_insee.code_insee = ins_admis.adresse_code_commune
 	
-	WHERE adresse_code_postal IS NOT NULL OR adresse_code_commune IS NOT NULL OR adresse_ligne1_etage IS NOT NULL OR adresse_ligne2_batiment IS NOT NULL OR adresse_ligne3_voie IS NOT NULL OR adresse_ligne4_complement IS NOT NULL OR adresse_ligne5_etranger IS NOT NULL OR adresse_code_pays IS NOT NULL);
+	WHERE adresse_code_postal IS NOT NULL OR adresse_code_commune IS NOT NULL OR adresse_ligne1_etage IS NOT NULL OR adresse_ligne2_batiment IS NOT NULL OR adresse_ligne3_voie IS NOT NULL OR adresse_ligne4_complement IS NOT NULL OR adresse_ligne5_etranger IS NOT NULL OR adresse_code_pays IS NOT NULL)
+	
+UNION
+
+(SELECT id::varchar(255) AS "id_apprenant",
+	'ADR-002' AS "id_demande",
+	'CDC001' AS "type",
+    'ADRESSE POSTALE' AS "libelle_type",
+	NULL AS "proprietaire",
+	NULL AS "mail",
+	NULL AS "telephone",
+	adresse_annuelle_code_postal AS "code_postal",
+	adresse_annuelle_code_commune AS "code_commune",
+	schema_pilotage.ref_commune_insee.libelle_long AS "libelle_commune",
+	adresse_annuelle_ligne1_ou_etage AS "ligne1_ou_etage",
+	adresse_annuelle_ligne2_ou_batiment AS "ligne2_ou_batiment",
+	adresse_annuelle_ligne3_ou_voie AS "ligne3_ou_voie",
+	adresse_annuelle_ligne4_ou_complement AS "ligne4_ou_complement",
+	adresse_annuelle_ligne5_etranger AS "ligne5_etranger",
+	adresse_annuelle_code_pays AS "code_pays",
+	P1.libelle_long AS "libelle_pays"
+	
+	FROM schema_pilotage.ins_admis
+	
+	LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = ins_admis.adresse_annuelle_code_pays
+	LEFT JOIN schema_pilotage.ref_commune_insee ON schema_pilotage.ref_commune_insee.code_insee = ins_admis.adresse_annuelle_code_commune
+	
+	WHERE adresse_annuelle_code_postal IS NOT NULL OR adresse_annuelle_code_commune IS NOT NULL OR adresse_annuelle_ligne1_ou_etage IS NOT NULL OR adresse_annuelle_ligne2_ou_batiment IS NOT NULL OR adresse_annuelle_ligne3_ou_voie IS NOT NULL OR adresse_annuelle_ligne4_ou_complement IS NOT NULL OR adresse_annuelle_ligne5_etranger IS NOT NULL OR adresse_annuelle_code_pays IS NOT NULL);
 
    
    
-
 
 
 
 
 CREATE VIEW schema_pilotage.ins_contacts AS
- SELECT id_apprenant,
-    MAIL.mail AS "mail_etab",
+ SELECT ins_contact.id_apprenant,
+    ETAB.mail AS "mail_etab",
     max(ins_contact.mail) filter (where id_demande = 'MEL-001') as "mail_perso",
     max(ins_contact.mail) filter (where id_demande = 'MEL-002') as "mail_secours",
     
@@ -1572,9 +1800,9 @@ CREATE VIEW schema_pilotage.ins_contacts AS
 
    FROM schema_pilotage.ins_contact
    LEFT JOIN schema_pilotage.ins_apprenant APP ON APP.id = ins_contact.id_apprenant
-   LEFT JOIN schema_pilotage.etab_mail_institutionnel MAIL ON MAIL.code_apprenant = APP.code_apprenant
+   LEFT JOIN schema_pilotage.etab_apprenant ETAB ON ETAB.id_apprenant = APP.id
 
-   GROUP BY id_apprenant, MAIL.mail;
+   GROUP BY ins_contact.id_apprenant, ETAB.uid, ETAB.mail;
 
 
    
@@ -1584,8 +1812,8 @@ CREATE VIEW schema_pilotage.ins_contacts AS
 
 
 
-/* inscriptions */
-CREATE TABLE schema_pilotage.ins_inscription_validee_ou_annulee AS
+/* inscriptions validées */
+CREATE TABLE schema_pilotage.ins_inscription_validee AS
  SELECT inscription.id::varchar(255),
     OOFC.id AS "id_objet_formation_chemin",
     inscription.id_apprenant::varchar(255),
@@ -1659,6 +1887,89 @@ CREATE TABLE schema_pilotage.ins_inscription_validee_ou_annulee AS
    LEFT JOIN schema_gestion.cible C ON C.id = inscription.id_cible
    LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.chemin = C.code_chemin AND OOFC.code_periode = C.code_periode
    
+   WHERE inscription.statut_inscription='V'
+   
+   ORDER BY code_periode, inscription.id;
+   
+   
+   
+/* inscriptions validées */
+CREATE TABLE schema_pilotage.ins_inscription_annulee AS
+ SELECT inscription.id::varchar(255),
+    OOFC.id AS "id_objet_formation_chemin",
+    inscription.id_apprenant::varchar(255),
+    OOFC.code_periode,
+    OOFC.libelle_periode,
+    OOFC.code_objet_formation AS "code_objet_formation",
+    OOFC.libelle_court_objet_formation AS "libelle_objet_formation",
+    inscription.origine,
+    inscription.contexte_inscription,
+    inscription.numero_candidat,
+    inscription.date_inscription,
+    CASE  
+		WHEN inscription.statut_inscription='V' THEN 'VALIDE'
+        WHEN inscription.statut_inscription='A' THEN 'ANNULEE'
+		ELSE 'INCONNU'
+	END AS "statut_inscription",
+    inscription.statut_paiement,
+    inscription.statut_pieces,
+    inscription.code_regime_inscription AS "code_regime_inscription",
+    RI.libelle_long AS "libelle_regime_inscription",
+    inscription.numero_cvec,
+    inscription.temoin_principale,
+    inscription.cesure,
+    inscription.mobilite,
+    inscription.temoin_souhait_amenagement AS "souhait_amenagement",
+    inscription.admission_voie,
+    inscription.admission_annee_concours,
+    inscription.admission_concours,
+    inscription.admission_rang_concours,
+    inscription.admission_annee_precedente,
+    inscription.admission_type_classe_preparatoire,
+    inscription.admission_puissance_classe_preparatoire,
+    inscription.admission_code_pays AS "admission_pays_etablissement_precedent",
+    inscription.admission_code_etablissement AS "admission_etablissement_precedent",
+    inscription.admission_temoin_classe_prepa,
+    inscription.admission_type_etablissement_precedent,
+    inscription.admission_departement_etablissement_precedent,
+    inscription.admission_code_etablissement_etranger AS "admission_etablissement_precedent_etranger",
+    inscription.annee_precedente,
+    inscription.situation_annee_precedente_code AS "code_situation_annee_precedente",
+    SAP.libelle_long AS "libelle_situation_annee_precedente",
+    inscription.annee_obtention_dernier_diplome,
+    inscription.code_type_dernier_diplome_obtenu,
+    DDO.libelle_long AS "libelle_type_dernier_diplome_obtenu",
+    inscription.motif_annulation,
+    inscription.temoin_avec_remboursement AS "avec_remboursement",
+    inscription.situation_annee_precedente_code_bcn,
+    inscription.situation_annee_precedente_libelle_affichage,
+    inscription.ecole_doctorale_code AS "code_ecole_doctorale",
+    ED.libelle_long AS "libelle_ecole_doctorale",
+    inscription.filiere_code AS "code_filiere",
+    CUP.libelle_long AS "libelle_filiere",
+    inscription.temoin_convention_etablissement,
+    inscription.programme_echange_code AS "code_programme_echange",
+    ECH.libelle_long AS "libelle_programme_echange",
+    inscription.programme_echange_pays_code AS "code_programme_echange_pays",
+    P1.libelle_long AS "libelle_programme_echange_pays",
+    inscription.temoin_enseignement_distance_depuis_france,
+    inscription.date_creation AS "date_de_creation",
+    inscription.date_modification AS "date_de_modification"
+
+   FROM schema_gestion.inscription
+   
+   LEFT JOIN schema_pilotage.ref_situation_annee_precedente SAP ON SAP.code_metier = inscription.situation_annee_precedente_code
+   LEFT JOIN schema_pilotage.ref_regime_inscription RI ON RI.code = inscription.code_regime_inscription
+   LEFT JOIN schema_pilotage.ref_type_dernier_diplome_obtenu DDO ON DDO.code_metier = inscription.code_type_dernier_diplome_obtenu
+   LEFT JOIN schema_pilotage.ref_cursus_parallele CUP ON CUP.code_metier = inscription.filiere_code
+   LEFT JOIN schema_pilotage.ref_programme_echange ECH ON ECH.code_metier = inscription.programme_echange_code
+   LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = inscription.programme_echange_pays_code
+   LEFT JOIN schema_pilotage.ref_ecole_doctorale ED ON ED.code_metier = inscription.ecole_doctorale_code
+   LEFT JOIN schema_gestion.cible C ON C.id = inscription.id_cible
+   LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.chemin = C.code_chemin AND OOFC.code_periode = C.code_periode
+   
+   WHERE inscription.statut_inscription='A'
+   
    ORDER BY code_periode, inscription.id;
 
 
@@ -1672,7 +1983,12 @@ CREATE TABLE schema_pilotage.ins_admission AS
 		WHEN AD.id_apprenant IS NOT NULL THEN AD.id_apprenant::varchar(255)
 		ELSE AD.id::varchar(255)
 	END AS "id_apprenant",
-	INS.id AS "id_inscription",
+	
+	CASE  
+		WHEN INSV.id IS NOT NULL THEN INSV.id
+		WHEN INSA.id IS NOT NULL THEN INSA.id
+		ELSE NULL
+	END AS "id_inscription",
     OOFC.code_periode,
     OOFC.libelle_periode,
     OOFC.code_objet_formation AS "code_objet_formation",
@@ -1689,23 +2005,175 @@ CREATE TABLE schema_pilotage.ins_admission AS
    
    LEFT JOIN schema_pilotage.ins_admis AD ON AD.id = admission.id_admis
    LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.code_objet_formation = admission.code_cible AND OOFC.code_periode = admission.code_periode
-   LEFT JOIN schema_pilotage.ins_inscription_validee_ou_annulee INS ON INS.id_objet_formation_chemin = OOFC.id AND INS.id_apprenant = AD.id_apprenant
+   LEFT JOIN schema_pilotage.ins_inscription_validee INSV ON INSV.id_objet_formation_chemin = OOFC.id AND INSV.id_apprenant = AD.id_apprenant
+   LEFT JOIN schema_pilotage.ins_inscription_annulee INSA ON INSA.id_objet_formation_chemin = OOFC.id AND INSA.id_apprenant = AD.id_apprenant
    
    WHERE AD.id_apprenant IS NOT NULL OR AD.id IS NOT NULL
-   GROUP BY admission.id, OOFC.id, AD.id_apprenant, AD.id, INS.id, OOFC.code_periode, OOFC.libelle_periode, OOFC.code_objet_formation, OOFC.libelle_court_objet_formation, admission.origine_admission, AD.numero_candidat, admission.voie_admission, admission.annee_concours, admission.statut, AD.date_de_creation, AD.date_de_modification
+   GROUP BY admission.id, OOFC.id, AD.id_apprenant, AD.id, INSV.id, INSA.id, OOFC.code_periode, OOFC.libelle_periode, OOFC.code_objet_formation, OOFC.libelle_court_objet_formation, admission.origine_admission, AD.numero_candidat, admission.voie_admission, admission.annee_concours, admission.statut, AD.date_de_creation, AD.date_de_modification
    ORDER BY code_periode, admission.id;
 
 
 
 
+/* inscriptions en cours */
+/* TODO DONE TESTER */
+CREATE TABLE schema_pilotage.ins_inscription_en_cours AS
+ SELECT
+    inscription.id::varchar(255),
+    inscription.code_apprenant,
+	ADM.id::varchar(255) AS id_apprenant,
+    statut_inscription,
+    statut_paiement,
+    statut_pieces,
+    code_structure,
+    inscription.code_periode,
+	OOFC.libelle_periode,
+    inscription.code_objet_formation,
+	OOFC.id AS "id_objet_formation_chemin",
+	OOFC.libelle_court_objet_formation AS "libelle_objet_formation",	
+    origine,
+    numero_cvec,
+    admission_voie,
+    admission_annee_concours::integer,
+    admission_concours,
+    admission_rang_concours::integer,
+    admission_annee_precedente::integer,
+    admission_type_classe_preparatoire,
+    admission_puissance_classe_preparatoire,
+    admission_code_pays,
+    admission_code_etablissement,
+    cesure,
+    mobilite,
+    temoin_souhait_amenagement,
+    admission_temoin_classe_prepa::boolean,
+    admission_type_etablissement_precedent,
+    admission_departement_etablissement_precedent,
+    admission_code_etablissement_etranger,
+    annee_precedente::integer,
+    situation_annee_precedente_code,
+	SAP.libelle_long AS "libelle_situation_annee_precedente",
+    code_regime_inscription,
+	RI.libelle_long AS "libelle_regime_inscription",
+    inscription.date_creation::timestamp,
+    inscription.date_modification::timestamp,
+    annee_obtention_dernier_diplome::integer,
+    code_type_dernier_diplome_obtenu,
+	DDO.libelle_long AS "libelle_type_dernier_diplome_obtenu",
+    situation_annee_precedente_code_bcn,
+    date_contexte_situation_annee_precedente,
+    situation_annee_precedente_libelle_affichage,
+    inscription.numero_candidat,
+    temoin_principale,
+    date_contexte_admission_concours,
+    date_contexte_admission_type_classe_preparatoire,
+    date_contexte_etablissement_precedent,
+    date_contexte_code_regime_inscription,
+    date_contexte_type_dernier_diplome_obtenu,
+    date_inscription,
+    ecole_doctorale_code,
+	ED.libelle_long AS "libelle_ecole_doctorale",
+    date_contexte_ecole_doctorale,
+    filiere_code,
+	CUP.libelle_long AS "libelle_filiere",
+    date_contexte_filiere,
+    temoin_convention_etablissement,
+    programme_echange_code,
+	ECH.libelle_long AS "libelle_programme_echange",
+    date_contexte_programme_echange,
+    programme_echange_pays_code,
+	P1.libelle_long AS "libelle_programme_echange_pays",
+    temoin_enseignement_distance_depuis_france,
+    contexte_inscription,
+    inscription.temoin_neo_bachelier,
+    paiement_reference
+    
+   FROM schema_ins_piste.inscription
+   
+   LEFT JOIN schema_ins_piste.apprenant IPAPP ON IPAPP.code_apprenant = inscription.code_apprenant
+   LEFT JOIN schema_pilotage.ins_admis ADM ON ADM.ine = IPAPP.ine
+   LEFT JOIN schema_pilotage.odf_objet_formation_chemin OOFC ON OOFC.code_objet_formation = inscription.code_objet_formation AND OOFC.code_periode = inscription.code_periode
+   LEFT JOIN schema_pilotage.ref_regime_inscription RI ON RI.code = inscription.code_regime_inscription  
+   LEFT JOIN schema_pilotage.ref_situation_annee_precedente SAP ON SAP.code_metier = inscription.situation_annee_precedente_code
+   LEFT JOIN schema_pilotage.ref_type_dernier_diplome_obtenu DDO ON DDO.code_metier = inscription.code_type_dernier_diplome_obtenu
+   LEFT JOIN schema_pilotage.ref_ecole_doctorale ED ON ED.code_metier = inscription.ecole_doctorale_code
+   LEFT JOIN schema_pilotage.ref_cursus_parallele CUP ON CUP.code_metier = inscription.filiere_code
+   LEFT JOIN schema_pilotage.ref_programme_echange ECH ON ECH.code_metier = inscription.programme_echange_code
+   LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = inscription.programme_echange_pays_code
+   
+   ORDER BY code_periode, inscription.id;
 
-/* INSCRIPTIONS en cours et validees */
+
+
+/* TODO INSCRIPTIONS en cours, annulees ou validees */
 CREATE TABLE schema_pilotage.ins_inscription AS
-   (SELECT * FROM schema_pilotage.ins_inscription_validee_ou_annulee)
+   (SELECT * FROM schema_pilotage.ins_inscription_validee)
    
    UNION
    
+   (SELECT * FROM schema_pilotage.ins_inscription_annulee)
+   
+   UNION
+
    (SELECT id,
+    id_objet_formation_chemin,
+	id_apprenant::varchar(255),
+    code_periode,
+    libelle_periode,
+    code_objet_formation,
+    libelle_objet_formation,
+    origine,
+    contexte_inscription,
+	numero_candidat,
+	NULL AS "date_inscription",
+	statut_inscription,
+    statut_paiement,
+    statut_pieces,
+    code_regime_inscription,
+    libelle_regime_inscription,
+    numero_cvec,
+    temoin_principale,
+    cesure,
+    mobilite,
+    temoin_souhait_amenagement AS "souhait_amenagement",
+    admission_voie,
+    admission_annee_concours,
+    admission_concours,
+    admission_rang_concours,
+    admission_annee_precedente,
+    admission_type_classe_preparatoire,
+    admission_puissance_classe_preparatoire,
+    NULL AS "admission_pays_etablissement_precedent",
+    NULL AS "admission_etablissement_precedent",
+    admission_temoin_classe_prepa,
+    admission_type_etablissement_precedent,
+    admission_departement_etablissement_precedent,
+    NULL AS "admission_etablissement_precedent_etranger",
+    annee_precedente,
+    situation_annee_precedente_code AS "code_situation_annee_precedente",
+    libelle_situation_annee_precedente,
+    annee_obtention_dernier_diplome,
+    code_type_dernier_diplome_obtenu,
+    libelle_type_dernier_diplome_obtenu,
+    NULL AS "motif_annulation",
+    NULL AS "avec_remboursement",
+    situation_annee_precedente_code_bcn,
+    situation_annee_precedente_libelle_affichage,
+    ecole_doctorale_code AS "code_ecole_doctorale",
+    libelle_ecole_doctorale,
+    filiere_code AS "code_filiere",
+    libelle_filiere,
+    temoin_convention_etablissement,
+    programme_echange_code AS "code_programme_echange",
+    libelle_programme_echange,
+    programme_echange_pays_code AS "code_programme_echange_pays",
+    libelle_programme_echange_pays,
+    temoin_enseignement_distance_depuis_france,
+    date_creation AS "date_de_creation",
+    date_modification AS "date_de_modification"
+
+   FROM schema_pilotage.ins_inscription_en_cours)
+
+   /*(SELECT id,
     id_objet_formation_chemin,
 	id_apprenant,
     code_periode,
@@ -1765,7 +2233,8 @@ CREATE TABLE schema_pilotage.ins_inscription AS
    FROM schema_pilotage.ins_admission
    
    WHERE ins_admission.statut = 'AU'
-   AND ins_admission.id_inscription IS NULL)
+   AND ins_admission.id_inscription IS NULL)*/
+   
    
    ORDER BY code_periode, id;
 
@@ -1774,6 +2243,66 @@ CREATE TABLE schema_pilotage.ins_inscription AS
 
 
 
+CREATE TABLE schema_pilotage.ins_inscription_en_cours_pieces AS
+    SELECT
+        DP.id_inscription,
+        DP.code,
+		RDP.libelle_affichage AS "libelle",
+        DP.obligatoire,
+        DP.temoin_photo,
+        DP.temoin_primo,
+        DP.temoin_reins,
+        DP.statut_piece
+    FROM schema_ins_piste.demande_piece DP
+	LEFT JOIN schema_pilotage.ref_demande_piece RDP ON RDP.code_metier = DP.code
+	ORDER BY DP.id_inscription,DP.code;
+   
+   
+   
+    
+CREATE TABLE schema_pilotage.ins_inscription_en_cours_paiements AS
+    SELECT
+        P.id,
+		IEC.id AS "id_inscription",
+        P.montant,
+		P.date_heure,
+		P.paiement_confirme,
+		P.paiement_manuel_valide
+		
+    FROM schema_ins_piste.paiements P
+	LEFT JOIN schema_pilotage.ins_inscription_en_cours IEC ON IEC.paiement_reference = P.id
+	WHERE IEC.id IS NOT NULL;
+   
+   
+   
+    
+CREATE TABLE schema_pilotage.ins_inscription_en_cours_paiements_paybox AS
+    SELECT
+        id_paiement,
+        P.montant,
+        P.date_heure,
+        echeance1_montant,
+        echeance1_date_recouvrement,
+        echeance2_montant,
+        echeance2_date_recouvrement,
+        echeance3_montant,
+        echeance3_date_recouvrement,
+        echeance4_montant,
+        echeance4_date_recouvrement,
+        echeance5_montant,
+        echeance5_date_recouvrement,
+		reponse_paybox_code,
+		reponse_paybox_transaction,
+		reponse_paybox_autorisation,
+		reference_paybox,
+		identifiant_compte
+		
+    FROM schema_ins_piste.paiements_paybox P
+	LEFT JOIN schema_pilotage.ins_inscription_en_cours_paiements IEP ON IEP.id = P.id_paiement
+	WHERE P.id_paiement IS NOT NULL;
+    
+    
+    
 
 
 /* ************************************************************************** */
@@ -1963,6 +2492,10 @@ CREATE TABLE schema_pilotage.pai_ventilation AS
    FROM schema_pai.ventilation V
    LEFT JOIN schema_pilotage.pai_structure_budgetaire SB ON SB.code = V.structure_budgetaire_code
    ;
+
+
+
+
 
 
 
