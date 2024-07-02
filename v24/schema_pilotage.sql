@@ -27,9 +27,10 @@ CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel
     code_apprenant character varying(255) COLLATE pg_catalog."default",
     mail character varying(255) COLLATE pg_catalog."default",
     CONSTRAINT etab_mail_institutionnel_pkey PRIMARY KEY (code_apprenant)
-)
-TABLESPACE pg_default;
+);
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel'; END; $$;
+
+
 
 /* table avec uid, mail établissement, etc. */
 CREATE TABLE IF NOT EXISTS schema_pilotage.etab_apprenant
@@ -38,9 +39,10 @@ CREATE TABLE IF NOT EXISTS schema_pilotage.etab_apprenant
     uid character varying(50) COLLATE pg_catalog."default",
     mail character varying(255) COLLATE pg_catalog."default",
     CONSTRAINT etab_apprenant_pkey PRIMARY KEY (id_apprenant)
-)
-TABLESPACE pg_default;
+);
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_apprenant'; END; $$;
+
+
 
 /* table avec libellés structures externes */
 CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe
@@ -53,9 +55,11 @@ CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe
     libelle_structure_externe_100 character varying(100) COLLATE pg_catalog."default",
     libelle_structure_externe_web character varying(105) COLLATE pg_catalog."default",
     libelle_structure_externe_juridique character varying(105) COLLATE pg_catalog."default"
-)
-TABLESPACE pg_default;
+);
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe'; END; $$;
+
+
+
 
 /* ************************************************************************** */
 /* données du référentiel nécesaires */
@@ -2021,7 +2025,7 @@ CREATE TABLE schema_pilotage.ins_inscription_en_cours AS
  SELECT
     inscription.id::varchar(255),
     inscription.code_apprenant,
-	ADM.id::varchar(255) AS id_apprenant,
+	ADM.id_apprenant::varchar(255) AS id_apprenant,
     statut_inscription,
     statut_paiement,
     statut_pieces,
