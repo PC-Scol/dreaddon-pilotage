@@ -1528,9 +1528,12 @@ CREATE TABLE schema_pilotage.ins_apprenant AS
    LEFT JOIN schema_pilotage.ref_specialites_bac SP1 ON SP1.code_metier = ins_admis.code_premiere_specialite_bac
    LEFT JOIN schema_pilotage.ref_specialites_bac SP2 ON SP2.code_metier = ins_admis.code_deuxieme_specialite_bac
    
-   WHERE (statut_admission= 'AU'/* Admission utilisée donc il existe un début de dossier dans CDI */ OR temoin_neo_bachelier IS NOT NULL)
---   AND ine = '233170970FF'
-   AND code_apprenant NOT IN (SELECT code_apprenant FROM schema_gestion.apprenant));
+   WHERE (
+      --statut_admission= 'AU' OR temoin_neo_bachelier IS NOT NULL)
+      --AND code_apprenant NOT IN (SELECT code_apprenant FROM schema_gestion.apprenant)
+      code_apprenant IS NULL OR code_apprenant NOT IN (SELECT code_apprenant FROM schema_gestion.apprenant)
+   )
+   );
 
 
 
