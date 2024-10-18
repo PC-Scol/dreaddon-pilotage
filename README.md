@@ -1,13 +1,13 @@
 # dreaddon-pilotage
 
-Cet addon crée un schéma `schema_pilotage` utilisable avec l'univers BO
-distribué par l'UPHF. Il nécessite l'addon `dreaddon-ins_piste`
+Cet addon crée les schémas suivants:
+* `schema_ins_piste` à partir de `mongo_piste_inscription`
+* `schema_pilotage` utilisable avec l'univers BO distribué par l'UPHF
 
 Pour utiliser cet addon, rajouter ceci dans la configuration:
 ~~~sh
 ADDON_URLS="
 ...
-PC-Scol/dreaddon-ins_piste.git
 PC-Scol/dreaddon-pilotage.git
 ...
 "
