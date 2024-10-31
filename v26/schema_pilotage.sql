@@ -1958,7 +1958,7 @@ CREATE VIEW schema_pilotage.ins_contacts AS
     max(ligne4_ou_complement) filter (where id_demande = 'ADR-002') as "adresse_annuelle_ligne4_ou_complement",
     max(ligne5_etranger) filter (where id_demande = 'ADR-002') as "adresse_annuelle_ligne5_etranger",
     max(code_pays) filter (where id_demande = 'ADR-002') as "adresse_annuelle_code_pays",
-    max(libelle_pays) filter (where id_demande = 'ADR-002') as "adresse_annuelle_libelle_pays_"
+    max(libelle_pays) filter (where id_demande = 'ADR-002') as "adresse_annuelle_libelle_pays"
 
    FROM schema_pilotage.ins_contact
    LEFT JOIN schema_pilotage.ins_apprenant APP ON APP.id = ins_contact.id_apprenant
