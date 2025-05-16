@@ -13,14 +13,6 @@
 */
 
 
-/* ************************************************************************** */
-/* création du schéma */
-
-CREATE SCHEMA IF NOT EXISTS schema_pilotage
-    AUTHORIZATION pegaseuser;
-
-
-
 /* table avec mails établissement */
 CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel
 (
