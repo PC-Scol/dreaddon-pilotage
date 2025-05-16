@@ -909,38 +909,6 @@ set
 
 
 
-/* ************************************************************************** */
-/* Droits pegaseuser */
-
-ALTER SCHEMA schema_ins_piste OWNER TO pegaseuser;
-
-
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'schema_ins_piste') LOOP
-         RAISE NOTICE 'ALTER TABLE %', quote_ident(r.tablename);
-         EXECUTE 'ALTER TABLE schema_ins_piste.' || quote_ident(r.tablename) || ' OWNER TO pegaseuser';
-    END LOOP;
-END $$;
-
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'schema_ins_piste') LOOP
-         RAISE NOTICE 'ALTER VIEW %', quote_ident(r.viewname);
-         EXECUTE 'ALTER VIEW schema_ins_piste.' || quote_ident(r.viewname) || ' OWNER TO pegaseuser';
-    END LOOP;
-END $$;
-
-
-
-
-
-
-
-
-
 
 /* ************************************************************************** */
 /* Besoins de tests */
