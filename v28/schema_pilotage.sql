@@ -13,14 +13,6 @@
 */
 
 
-/* ************************************************************************** */
-/* création du schéma */
-
-CREATE SCHEMA IF NOT EXISTS schema_pilotage
-    AUTHORIZATION pegaseuser;
-
-
-
 /* table avec mails établissement */
 CREATE TABLE IF NOT EXISTS schema_pilotage.etab_mail_institutionnel
 (
@@ -3172,28 +3164,3 @@ END $$;
 
 
 
-
-
-
-
-
-/* ************************************************************************** */
-/* Droits pegaseuser */
-
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'schema_pilotage') LOOP
-         RAISE NOTICE 'ALTER TABLE %', quote_ident(r.tablename);
-         EXECUTE 'ALTER TABLE schema_pilotage.' || quote_ident(r.tablename) || ' OWNER TO pegaseuser';
-    END LOOP;
-END $$;
-
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'schema_pilotage') LOOP
-         RAISE NOTICE 'ALTER VIEW %', quote_ident(r.viewname);
-         EXECUTE 'ALTER VIEW schema_pilotage.' || quote_ident(r.viewname) || ' OWNER TO pegaseuser';
-    END LOOP;
-END $$;
