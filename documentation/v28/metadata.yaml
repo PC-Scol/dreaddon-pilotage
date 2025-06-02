@@ -1,0 +1,22 @@
+# -*- coding: utf-8 mode: yaml -*- vim:sw=2:sts=2:et:ai:si:sta:fenc=utf-8
+
+files:
+  Univers_DRE_v3.3.28.2.lcmbiar:
+    title: Univers BO
+    desc: |
+      Cette version apporte les modifications notables suivantes:
+
+      `Modifications de structure`
+      : En plus des modifications liées aux deux nouvelles tables (idt_contacts
+        et idt_apprenant), nous avons également réorganisé les objets dans des
+        classes et sous-classes.
+      
+      `Statut d'inscription`
+      : Les valeurs évoluent :
+        - VALIDE devient VALIDEE
+        - EN_COURS disparait
+        - Nouvelles valeurs : AUTORISEE et DEBUTEE
+
+      `Objet disparu : Bourse Aide Financière / Type`
+      : BO prévient les utilisateurs s'ils ouvrent un document où cet objet
+        était présent, et il supprime l'objet de la requête automatiquement.
