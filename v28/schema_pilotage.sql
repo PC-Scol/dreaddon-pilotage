@@ -1826,6 +1826,7 @@ FROM schema_keycloak.user_entity
 --LIMIT 500
 ;
 
+ALTER TABLE schema_pilotage.idt_apprenant ADD PRIMARY KEY (id);
 CREATE UNIQUE INDEX idt_apprenant_id_idx ON schema_pilotage.idt_apprenant (id);
 CREATE INDEX idt_apprenant_code_apprenant_idx ON schema_pilotage.idt_apprenant (code_apprenant);
 
@@ -2473,9 +2474,10 @@ CREATE TABLE schema_pilotage.ins_inscription_en_cours AS
 
 CREATE TABLE schema_pilotage.ins_inscription_en_cours_pieces AS
     SELECT
+        DP.id,
         DP.id_inscription::varchar,
         DP.code_metier AS "code",
-	RDP.libelle_affichage AS "libelle",
+        RDP.libelle_affichage AS "libelle",
         DP.temoin_obligatoire AS "obligatoire",
         DP.temoin_photo,
         --DP.temoin_primo,
@@ -2486,10 +2488,21 @@ CREATE TABLE schema_pilotage.ins_inscription_en_cours_pieces AS
 	schema_pilotage.ins_inscription_en_cours IEC
     WHERE RDP.code_metier = DP.code_metier
     AND DP.id_inscription::varchar = IEC.id
+    
+    GROUP BY 
+        DP.id,
+        DP.id_inscription,
+        DP.code_metier,
+        RDP.libelle_affichage,
+        DP.temoin_obligatoire,
+        DP.temoin_photo,
+        DP.statut
+    
 	ORDER BY DP.id_inscription,DP.code_metier;
- 
- 
- CREATE INDEX ins_inscription_en_cours_pieces_id_inscription_idx ON schema_pilotage.ins_inscription_en_cours_pieces (id_inscription);  
+
+
+ALTER TABLE schema_pilotage.ins_inscription_en_cours_pieces ADD PRIMARY KEY (id, id_inscription);  
+CREATE INDEX ins_inscription_en_cours_pieces_id_inscription_idx ON schema_pilotage.ins_inscription_en_cours_pieces (id_inscription);  
    
    
 
@@ -2704,9 +2717,9 @@ CREATE TABLE schema_pilotage.pai_ventilation AS
 /* notes et résultats */
 CREATE TABLE schema_pilotage.coc_note_resultat AS
 SELECT 
-    --NR.id,
+    NR.id,
     APP.id AS "id_apprenant",
-    APP.code_apprenant,
+    CA.code AS "code_apprenant",
     OOF.id AS "id_objet_formation",
     OOF.code_periode,
     OOF.code AS "code_objet_formation",
@@ -2777,7 +2790,12 @@ LEFT JOIN schema_pilotage.ref_type_resultat RTR2 ON RTR2.code_metier = NR.result
 LEFT JOIN schema_pilotage.ref_type_resultat RTR3 ON RTR3.code_metier = NR.resultat_final
 LEFT JOIN schema_pilotage.ref_mention_honorifique RMH ON RMH.code_metier = NR.mention
 LEFT JOIN schema_pilotage.ref_notation_ects RNE ON RNE.code_metier = NR.grade_ects
-LEFT JOIN schema_pilotage.ref_grade_point_average RGPA ON RGPA.code_metier = NR.gpa;
+LEFT JOIN schema_pilotage.ref_grade_point_average RGPA ON RGPA.code_metier = NR.gpa
+
+WHERE APP.id IS NOT NULL;
+
+
+ALTER TABLE schema_pilotage.coc_note_resultat ADD PRIMARY KEY (id, id_apprenant);
 
 
 
@@ -2811,14 +2829,19 @@ FROM schema_coc.diplome_evaluation;
 /* diplômes */
 CREATE TABLE schema_pilotage.coc_diplome AS
 SELECT 
+	AD.id,	
 	APP.id AS "id_apprenant",
 	APP.code_apprenant,
 	P.code AS "code_periode",
 	P.libelle_long AS "libelle_periode",
-	DLOM.code_objet_maquette,
+	CASE  
+		WHEN DLOM.code_objet_maquette IS NOT NULL THEN DLOM.code_objet_maquette
+		ELSE ''
+	END AS "code_objet_maquette",
 	AD.id_diplome,
 	AD.temoin_annulation_autorisation_impossible,
 	
+	CDE.id AS "id_diplome_evaluation",
 	CDE.mention AS "code_mention_honorifique",
 	RMH.libelle_court AS "libelle_court_mention_honorifique",
 	RMH.libelle_long AS "libelle_long_mention_honorifique",
@@ -2843,7 +2866,7 @@ SELECT
 	D.intitule AS "diplome_intitule",
 	D.temoin_actif AS "diplome_temoin_actif",
 	D.etat AS "diplome_etat",
-	PAR.date_edition AS "parchemin_date_edition",
+	NULL AS "parchemin_date_edition",--PAR.date_edition AS "parchemin_date_edition",
 	PAR.numero_edition AS "parchemin_numero_edition",
 	ADPS.date_signature AS "parchemin_date_signature_recteur",
 	NULL AS "parchemin_libelle_parcours_type_original", /* après v26 : disparu ? */
@@ -2858,12 +2881,13 @@ SELECT
 	M.type_template AS "modele_type_template"
 	
 FROM schema_coc.apprenant_diplome AD
-LEFT JOIN schema_pilotage.coc_diplome_evaluation CDE ON CDE.id_diplome = AD.id
-LEFT JOIN schema_pilotage.ref_mention_honorifique RMH ON RMH.code_metier = CDE.mention
-LEFT JOIN schema_coc.apprenant CA ON CA.id = AD.id_apprenant
-LEFT JOIN schema_pilotage.idt_apprenant APP ON APP.code_apprenant = CA.code
 LEFT JOIN schema_coc.diplome D ON D.id = AD.id_diplome
 LEFT JOIN schema_coc.periode P ON P.id = D.id_periode
+LEFT JOIN schema_coc.apprenant CA ON CA.id = AD.id_apprenant
+LEFT JOIN schema_pilotage.idt_apprenant APP ON APP.code_apprenant = CA.code
+LEFT JOIN schema_pilotage.coc_diplome_evaluation CDE ON CDE.id_diplome = D.id AND CDE.id_apprenant = CA.id
+LEFT JOIN schema_pilotage.ref_mention_honorifique RMH ON RMH.code_metier = CDE.mention
+
 LEFT JOIN schema_pilotage.ref_finalite_formation RFF ON RFF.code_metier = D.type_finalite_formation_code
 LEFT JOIN schema_coc.diplome_lien_objet_maquette DLOM ON DLOM.id_diplome = D.id
 LEFT JOIN schema_coc.apprenant_diplome_parchemin PAR ON PAR.id_apprenant_diplome = AD.id
@@ -2872,12 +2896,20 @@ LEFT JOIN schema_coc.modele M ON M.id = PPAR.id_modele_parchemin
 LEFT JOIN schema_coc.modele_parchemin MP ON MP.id = PPAR.id_modele_parchemin
 LEFT JOIN schema_coc.apprenant_diplome_parchemin_sauvegarde ADPS ON M.id = PAR.id_apprenant_diplome_parchemin_sauvegarde
 
-GROUP BY APP.id,APP.code_apprenant,P.code,P.libelle_long,DLOM.code_objet_maquette,AD.id_diplome,AD.temoin_annulation_autorisation_impossible,
+GROUP BY AD.id, APP.id,APP.code_apprenant,P.code,P.libelle_long,
+--DLOM.code_objet_maquette,
+"code_objet_maquette",
+AD.id_diplome,AD.temoin_annulation_autorisation_impossible,CDE.id,
 CDE.mention,RMH.libelle_court,RMH.libelle_long,RMH.libelle_affichage,CDE.etat_mention,
 AD.date_autorisation,AD.utilisateur_autorisation,AD.date_annulation_apres_edition,AD.utilisateur_annulation_apres_edition,AD.motif_annulation_apres_edition,D.code_uai_etablissement_delivrant_le_diplome,D.code,/*D.version,*/D.type_finalite_formation_code,RFF.libelle_court,RFF.libelle_long,RFF.libelle_affichage,
-D.libelle_court,D.intitule,D.temoin_actif,D.etat,PAR.date_edition,PAR.numero_edition,ADPS.date_signature,
+D.libelle_court,D.intitule,D.temoin_actif,D.etat,
+--PAR.date_edition,
+PAR.numero_edition,ADPS.date_signature,
 MP.libelle_court,MP.description,MP.denomination_diplome,MP.libelle_parcours_type,M.contenu_reference,M.libelle_court,M.type_template
 ;
+
+
+ALTER TABLE schema_pilotage.coc_diplome ADD PRIMARY KEY (id, code_periode, code_objet_maquette);
 
 
 
