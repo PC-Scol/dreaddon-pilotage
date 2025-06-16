@@ -1819,7 +1819,7 @@ CREATE TABLE schema_pilotage.idt_apprenant AS
     (SELECT value FROM schema_keycloak.user_attribute WHERE name='idIdentiteLiee' AND user_attribute.user_id=user_entity.id) AS "id_identite_liee",
     (SELECT value FROM schema_keycloak.user_attribute WHERE name='temoinDoublonPotentiel' AND user_attribute.user_id=user_entity.id) AS "temoin_doublon_potentiel",
     to_timestamp(created_timestamp::BIGINT / 1000) AS "date_de_creation",
-    to_timestamp((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateModification' AND user_attribute.user_id=user_entity.id)::BIGINT / 1000) AS "date_de_modification"
+    to_timestamp((SELECT max(value) FROM schema_keycloak.user_attribute WHERE name='dateModification' AND user_attribute.user_id=user_entity.id)::BIGINT / 1000) AS "date_de_modification"
 
 FROM schema_keycloak.user_entity
 --WHERE username LIKE '%.%'
