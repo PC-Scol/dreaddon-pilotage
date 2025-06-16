@@ -1753,78 +1753,171 @@ CREATE TABLE schema_pilotage.temp_user_attributes AS
 
 
 /* apprenants */
-CREATE TABLE schema_pilotage.idt_apprenant AS
- SELECT user_entity.id::varchar(255),
-    username AS "identifiant_pegase",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeApprenant' AND user_attribute.user_id=user_entity.id) AS "code_apprenant",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='ineMaitre' AND user_attribute.user_id=user_entity.id) AS "ine_maitre",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='etatIneMaitre' AND user_attribute.user_id=user_entity.id) "statut_ine_maitre",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id) AS "liste_ine",
-    clean_string(last_name) AS "nom_famille",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='nomUsage' AND user_attribute.user_id=user_entity.id) AS "nom_usuel",
-    clean_string(first_name) AS "prenom",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='prenom2' AND user_attribute.user_id=user_entity.id) AS "prenom2",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='prenom3' AND user_attribute.user_id=user_entity.id) AS "prenom3",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='sexe' AND user_attribute.user_id=user_entity.id) AS "sexe",
-    to_date((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateNaissance' AND user_attribute.user_id=user_entity.id), 'YYYY-MM-DD') AS "date_naissance",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePaysNaissance' AND user_attribute.user_id=user_entity.id) AS "code_pays_naissance",
-    NULL::varchar(255) AS "libelle_pays_naissance",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCommuneNaissance' AND user_attribute.user_id=user_entity.id) AS "code_commune_naissance",
-    NULL::varchar(255) AS "libelle_commune_naissance",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='libelleCommuneNaissanceEtranger' AND user_attribute.user_id=user_entity.id) AS "libelle_commune_naissance_etranger",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeNationalite' AND user_attribute.user_id=user_entity.id) AS "code_nationalite",
-    NULL::varchar(255) AS "libelle_nationalite",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeNationalite2' AND user_attribute.user_id=user_entity.id) AS "code_nationalite2",
-    NULL::varchar(255) AS "libelle_nationalite2",
-    to_date((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateObtentionNationalite2' AND user_attribute.user_id=user_entity.id), 'YYYY-MM-DD') AS "date_obtention_nationalite2",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeObtentionBac' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_obtention_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeTypeSerieBac' AND user_attribute.user_id=user_entity.id) AS "code_type_ou_serie_bac",
-    NULL::varchar(255) AS "libelle_type_ou_serie_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeMentionBac' AND user_attribute.user_id=user_entity.id) AS "code_mention_bac",
-    NULL::varchar(255) AS "libelle_mention_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='typeEtablissementBac' AND user_attribute.user_id=user_entity.id) AS "type_etablissement_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePaysBac' AND user_attribute.user_id=user_entity.id) AS "code_pays_bac",
-    NULL::varchar(255) AS "libelle_pays_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeDepartementBac' AND user_attribute.user_id=user_entity.id) AS "code_departement_bac",
-    NULL::varchar(255)AS "libelle_departement_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeUAIEtablissementBac' AND user_attribute.user_id=user_entity.id) AS "code_etablissement_bac",
-    NULL::varchar(255) AS "libelle_etablissement_bac",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='libelleEtablissementBacEtranger' AND user_attribute.user_id=user_entity.id) AS "etablissement_libre_bac",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='complementTitreDispenseBac' AND user_attribute.user_id=user_entity.id) AS "precision_titre_dispense_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeEnseignementSuperieur' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_enseignement_superieur",
+-- CREATE TABLE schema_pilotage.idt_apprenant AS
+--  SELECT user_entity.id::varchar(255),
+--     username AS "identifiant_pegase",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeApprenant' AND user_attribute.user_id=user_entity.id) AS "code_apprenant",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='ineMaitre' AND user_attribute.user_id=user_entity.id) AS "ine_maitre",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='etatIneMaitre' AND user_attribute.user_id=user_entity.id) "statut_ine_maitre",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id) AS "liste_ine",
+--     clean_string(last_name) AS "nom_famille",
+--     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='nomUsage' AND user_attribute.user_id=user_entity.id) AS "nom_usuel",
+--     clean_string(first_name) AS "prenom",
+--     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='prenom2' AND user_attribute.user_id=user_entity.id) AS "prenom2",
+--     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='prenom3' AND user_attribute.user_id=user_entity.id) AS "prenom3",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='sexe' AND user_attribute.user_id=user_entity.id) AS "sexe",
+--     to_date((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateNaissance' AND user_attribute.user_id=user_entity.id), 'YYYY-MM-DD') AS "date_naissance",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePaysNaissance' AND user_attribute.user_id=user_entity.id) AS "code_pays_naissance",
+--     NULL::varchar(255) AS "libelle_pays_naissance",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCommuneNaissance' AND user_attribute.user_id=user_entity.id) AS "code_commune_naissance",
+--     NULL::varchar(255) AS "libelle_commune_naissance",
+--     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='libelleCommuneNaissanceEtranger' AND user_attribute.user_id=user_entity.id) AS "libelle_commune_naissance_etranger",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeNationalite' AND user_attribute.user_id=user_entity.id) AS "code_nationalite",
+--     NULL::varchar(255) AS "libelle_nationalite",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeNationalite2' AND user_attribute.user_id=user_entity.id) AS "code_nationalite2",
+--     NULL::varchar(255) AS "libelle_nationalite2",
+--     to_date((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateObtentionNationalite2' AND user_attribute.user_id=user_entity.id), 'YYYY-MM-DD') AS "date_obtention_nationalite2",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeObtentionBac' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_obtention_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeTypeSerieBac' AND user_attribute.user_id=user_entity.id) AS "code_type_ou_serie_bac",
+--     NULL::varchar(255) AS "libelle_type_ou_serie_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeMentionBac' AND user_attribute.user_id=user_entity.id) AS "code_mention_bac",
+--     NULL::varchar(255) AS "libelle_mention_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='typeEtablissementBac' AND user_attribute.user_id=user_entity.id) AS "type_etablissement_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePaysBac' AND user_attribute.user_id=user_entity.id) AS "code_pays_bac",
+--     NULL::varchar(255) AS "libelle_pays_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeDepartementBac' AND user_attribute.user_id=user_entity.id) AS "code_departement_bac",
+--     NULL::varchar(255)AS "libelle_departement_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeUAIEtablissementBac' AND user_attribute.user_id=user_entity.id) AS "code_etablissement_bac",
+--     NULL::varchar(255) AS "libelle_etablissement_bac",
+--     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='libelleEtablissementBacEtranger' AND user_attribute.user_id=user_entity.id) AS "etablissement_libre_bac",
+--     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='complementTitreDispenseBac' AND user_attribute.user_id=user_entity.id) AS "precision_titre_dispense_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeEnseignementSuperieur' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_enseignement_superieur",
     
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeTitreAccesESRFrancais' AND user_attribute.user_id=user_entity.id) AS "code_titre_acces_esr_francais",
-    NULL::varchar(255) AS "libelle_titre_acces_esr_francais",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeTitreAccesESRFrancais' AND user_attribute.user_id=user_entity.id) AS "code_titre_acces_esr_francais",
+--     NULL::varchar(255) AS "libelle_titre_acces_esr_francais",
     
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeUniversite' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_universite",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeEtablissement' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_etablissement",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelle' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle",
-    NULL::varchar(255) AS "libelle_categorie_socioprofessionnelle",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeQuotiteTravaillee' AND user_attribute.user_id=user_entity.id) AS "code_quotite_travaillee",
-    NULL::varchar(255) AS "libelle_quotite_travaillee",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelleParent1' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle_parent1",
-    NULL::varchar(255) AS "libelle_socioprofessionnelle_parent1",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelleParent2' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle_parent2",
-    NULL::varchar(255) AS "libelle_socioprofessionnelle_parent2",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeSituationFamiliale' AND user_attribute.user_id=user_entity.id) AS "code_situation_familiale",
-    NULL::varchar(255) AS "libelle_situation_familiale",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='nombreEnfants' AND user_attribute.user_id=user_entity.id)::INTEGER AS "nombre_enfants",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeSituationMilitaire' AND user_attribute.user_id=user_entity.id) AS "code_situation_militaire",
-    NULL::varchar(255) AS "libelle_situation_militaire",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePremiereSpecialiteBac' AND user_attribute.user_id=user_entity.id) AS "code_premiere_specialite_bac",
-    NULL::varchar(255) AS "libelle_premiere_specialite_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeDeuxiemeSpecialiteBac' AND user_attribute.user_id=user_entity.id) AS "code_deuxieme_specialite_bac",
-    NULL::varchar(255) AS "libelle_deuxieme_specialite_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeUniversite' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_universite",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeEtablissement' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_etablissement",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelle' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle",
+--     NULL::varchar(255) AS "libelle_categorie_socioprofessionnelle",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeQuotiteTravaillee' AND user_attribute.user_id=user_entity.id) AS "code_quotite_travaillee",
+--     NULL::varchar(255) AS "libelle_quotite_travaillee",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelleParent1' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle_parent1",
+--     NULL::varchar(255) AS "libelle_socioprofessionnelle_parent1",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelleParent2' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle_parent2",
+--     NULL::varchar(255) AS "libelle_socioprofessionnelle_parent2",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeSituationFamiliale' AND user_attribute.user_id=user_entity.id) AS "code_situation_familiale",
+--     NULL::varchar(255) AS "libelle_situation_familiale",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='nombreEnfants' AND user_attribute.user_id=user_entity.id)::INTEGER AS "nombre_enfants",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeSituationMilitaire' AND user_attribute.user_id=user_entity.id) AS "code_situation_militaire",
+--     NULL::varchar(255) AS "libelle_situation_militaire",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePremiereSpecialiteBac' AND user_attribute.user_id=user_entity.id) AS "code_premiere_specialite_bac",
+--     NULL::varchar(255) AS "libelle_premiere_specialite_bac",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeDeuxiemeSpecialiteBac' AND user_attribute.user_id=user_entity.id) AS "code_deuxieme_specialite_bac",
+--     NULL::varchar(255) AS "libelle_deuxieme_specialite_bac",
     
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='idIdentiteLiee' AND user_attribute.user_id=user_entity.id) AS "id_identite_liee",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='temoinDoublonPotentiel' AND user_attribute.user_id=user_entity.id) AS "temoin_doublon_potentiel",
-    to_timestamp(created_timestamp::BIGINT / 1000) AS "date_de_creation",
-    to_timestamp((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateModification' AND user_attribute.user_id=user_entity.id)::BIGINT / 1000) AS "date_de_modification"
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='idIdentiteLiee' AND user_attribute.user_id=user_entity.id) AS "id_identite_liee",
+--     (SELECT value FROM schema_keycloak.user_attribute WHERE name='temoinDoublonPotentiel' AND user_attribute.user_id=user_entity.id) AS "temoin_doublon_potentiel",
+--     to_timestamp(created_timestamp::BIGINT / 1000) AS "date_de_creation",
+--     to_timestamp((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateModification' AND user_attribute.user_id=user_entity.id)::BIGINT / 1000) AS "date_de_modification"
 
-FROM schema_keycloak.user_entity
---WHERE username LIKE '%.%'
---LIMIT 500
-;
+-- FROM schema_keycloak.user_entity
+-- --WHERE username LIKE '%.%'
+-- --LIMIT 500
+-- ;
+
+-- Proposition de correction la table schema_pilotage.idt_apprenant
+
+-- La clause WITH crée deux tables temporaires :
+-- 1. `user_attrs` : Regroupe les attributs des utilisateurs sous forme d'objets JSON.
+--    - `jsonb_object_agg(name, value)` : Agrège les paires clé-valeur des colonnes `name` et `value` en un objet JSON.
+--    - `GROUP BY user_id` : Regroupe les données par identifiant utilisateur.
+-- 2. `default_nulls` : Définit une valeur par défaut NULL pour les colonnes
+
+-- INFO : L'opérateur "->>" permet de récupérer la valeur d'une clé d'un objet json sous forme de texte
+-- DOCS :
+--    - https://neon.com/postgresql/postgresql-json-functions/postgresql-jsonb_object_agg
+--    - https://neon.com/postgresql/postgresql-json-functions/postgresql-json-extract
+
+CREATE TABLE schema_pilotage.idt_apprenant AS
+WITH user_attrs AS (
+    SELECT
+        user_id,
+        jsonb_object_agg(name, value) AS attrs,
+        MAX((value::BIGINT)) FILTER (WHERE name = 'dateModification') AS last_date_modification
+    FROM schema_keycloak.user_attribute
+    GROUP BY user_id
+),
+default_nulls AS (
+    SELECT NULL AS default_null
+)
+SELECT
+    ue.id::varchar(255),
+    ue.username AS identifiant_pegase,
+    ua.attrs ->> 'codeApprenant' AS code_apprenant,
+    ua.attrs ->> 'ineMaitre' AS ine_maitre,
+    ua.attrs ->> 'etatIneMaitre' AS statut_ine_maitre,
+    ua.attrs ->> 'listeINEs' AS liste_ine,
+    clean_string(ue.last_name) AS nom_famille,
+    clean_string(ua.attrs ->> 'nomUsage') AS nom_usuel,
+    clean_string(ue.first_name) AS prenom,
+    clean_string(ua.attrs ->> 'prenom2') AS prenom2,
+    clean_string(ua.attrs ->> 'prenom3') AS prenom3,
+    ua.attrs ->> 'sexe' AS sexe,
+    to_date(ua.attrs ->> 'dateNaissance', 'YYYY-MM-DD') AS date_naissance,
+    ua.attrs ->> 'codePaysNaissance' AS code_pays_naissance,
+    dn.default_null AS libelle_pays_naissance,
+    ua.attrs ->> 'codeCommuneNaissance' AS code_commune_naissance,
+    dn.default_null AS libelle_commune_naissance,
+    clean_string(ua.attrs ->> 'libelleCommuneNaissanceEtranger') AS libelle_commune_naissance_etranger,
+    ua.attrs ->> 'codeNationalite' AS code_nationalite,
+    dn.default_null AS libelle_nationalite,
+    ua.attrs ->> 'codeNationalite2' AS code_nationalite2,
+    dn.default_null AS libelle_nationalite2,
+    to_date(ua.attrs ->> 'dateObtentionNationalite2', 'YYYY-MM-DD') AS date_obtention_nationalite2,
+    (ua.attrs ->> 'anneeObtentionBac')::INTEGER AS annee_obtention_bac,
+    ua.attrs ->> 'codeTypeSerieBac' AS code_type_ou_serie_bac,
+    dn.default_null AS libelle_type_ou_serie_bac,
+    ua.attrs ->> 'codeMentionBac' AS code_mention_bac,
+    dn.default_null AS libelle_mention_bac,
+    ua.attrs ->> 'typeEtablissementBac' AS type_etablissement_bac,
+    ua.attrs ->> 'codePaysBac' AS code_pays_bac,
+    dn.default_null AS libelle_pays_bac,
+    ua.attrs ->> 'codeDepartementBac' AS code_departement_bac,
+    dn.default_null AS libelle_departement_bac,
+    ua.attrs ->> 'codeUAIEtablissementBac' AS code_etablissement_bac,
+    dn.default_null AS libelle_etablissement_bac,
+    clean_string(ua.attrs ->> 'libelleEtablissementBacEtranger') AS etablissement_libre_bac,
+    clean_string(ua.attrs ->> 'complementTitreDispenseBac') AS precision_titre_dispense_bac,
+    (ua.attrs ->> 'anneeEntreeEnseignementSuperieur')::INTEGER AS annee_entree_enseignement_superieur,
+    ua.attrs ->> 'codeTitreAccesESRFrancais' AS code_titre_acces_esr_francais,
+    dn.default_null AS libelle_titre_acces_esr_francais,
+    (ua.attrs ->> 'anneeEntreeUniversite')::INTEGER AS annee_entree_universite,
+    (ua.attrs ->> 'anneeEntreeEtablissement')::INTEGER AS annee_entree_etablissement,
+    ua.attrs ->> 'codeCategorieSocioProfessionnelle' AS code_categorie_socioprofessionnelle,
+    dn.default_null AS libelle_categorie_socioprofessionnelle,
+    ua.attrs ->> 'codeQuotiteTravaillee' AS code_quotite_travaillee,
+    dn.default_null AS libelle_quotite_travaillee,
+    ua.attrs ->> 'codeCategorieSocioProfessionnelleParent1' AS code_categorie_socioprofessionnelle_parent1,
+    dn.default_null AS libelle_socioprofessionnelle_parent1,
+    ua.attrs ->> 'codeCategorieSocioProfessionnelleParent2' AS code_categorie_socioprofessionnelle_parent2,
+    dn.default_null AS libelle_socioprofessionnelle_parent2,
+    ua.attrs ->> 'codeSituationFamiliale' AS code_situation_familiale,
+    dn.default_null AS libelle_situation_familiale,
+    (ua.attrs ->> 'nombreEnfants')::INTEGER AS nombre_enfants,
+    ua.attrs ->> 'codeSituationMilitaire' AS code_situation_militaire,
+    dn.default_null AS libelle_situation_militaire,
+    ua.attrs ->> 'codePremiereSpecialiteBac' AS code_premiere_specialite_bac,
+    dn.default_null AS libelle_premiere_specialite_bac,
+    ua.attrs ->> 'codeDeuxiemeSpecialiteBac' AS code_deuxieme_specialite_bac,
+    dn.default_null AS libelle_deuxieme_specialite_bac,
+    ua.attrs ->> 'idIdentiteLiee' AS id_identite_liee,
+    ua.attrs ->> 'temoinDoublonPotentiel' AS temoin_doublon_potentiel,
+    to_timestamp(ue.created_timestamp::BIGINT / 1000) AS date_de_creation,
+    to_timestamp(last_date_modification::BIGINT / 1000) AS date_de_modification
+FROM schema_keycloak.user_entity ue
+LEFT JOIN user_attrs ua ON ua.user_id = ue.id
+LEFT JOIN default_nulls dn ON true;
 
 ALTER TABLE schema_pilotage.idt_apprenant ADD PRIMARY KEY (id);
 CREATE UNIQUE INDEX idt_apprenant_id_idx ON schema_pilotage.idt_apprenant (id);
