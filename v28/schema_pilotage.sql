@@ -1751,6 +1751,9 @@ CREATE TABLE schema_pilotage.temp_user_attributes AS
 	);*/
 
 
+/* clean @yyyy-mm-dd dans keycloak */
+UPDATE schema_keycloak.user_attribute SET value=SPLIT_PART(value, '@', 1) WHERE value ~ '@\d{4}-\d{2}-\d{2}$';
+
 
 /* apprenants */
 CREATE TABLE schema_pilotage.idt_apprenant AS
