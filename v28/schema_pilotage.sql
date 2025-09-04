@@ -1762,7 +1762,13 @@ CREATE TABLE schema_pilotage.idt_apprenant AS
     (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeApprenant' AND user_attribute.user_id=user_entity.id) AS "code_apprenant",
     (SELECT value FROM schema_keycloak.user_attribute WHERE name='ineMaitre' AND user_attribute.user_id=user_entity.id) AS "ine_maitre",
     (SELECT value FROM schema_keycloak.user_attribute WHERE name='etatIneMaitre' AND user_attribute.user_id=user_entity.id) "statut_ine_maitre",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id) AS "liste_ine",
+
+    (SELECT string_agg(value, ',' ORDER BY value) AS listeINEs
+    FROM schema_keycloak.user_attribute
+    WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id
+    GROUP BY user_id) AS "liste_ine",
+    --(SELECT value FROM schema_keycloak.user_attribute WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id) AS "liste_ine",
+	
     clean_string(last_name) AS "nom_famille",
     (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='nomUsage' AND user_attribute.user_id=user_entity.id) AS "nom_usuel",
     clean_string(first_name) AS "prenom",
