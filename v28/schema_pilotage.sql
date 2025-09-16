@@ -359,6 +359,7 @@ begin
 	tmp_value = regexp_replace(tmp_value, '\u043E', 'o', 'g');
 
 	tmp_value = regexp_replace(tmp_value, '\u0082', ' ', 'g');
+	tmp_value = regexp_replace(tmp_value, '\u202f', ' ', 'g');
 	
 	tmp_value = regexp_replace(tmp_value, '\u2000', ' ', 'g');
 	tmp_value = regexp_replace(tmp_value, '\u2001', ' ', 'g');
