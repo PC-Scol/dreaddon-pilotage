@@ -1,0 +1,4 @@
+*.sql text
+*.yaml text
+*.conf text
+*.md text
