@@ -47,7 +47,7 @@ directement sur la branche master
 git checkout master
 
 # fusionner les modifications de la branche develop
-git merge develop --no-ff -m "description des modifications"
+git merge develop --no-ff -m "description de la livraison"
 
 # rebasculer sur la branche develop
 git checkout develop
