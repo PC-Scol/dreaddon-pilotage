@@ -378,6 +378,8 @@ begin
 	tmp_value = regexp_replace(tmp_value, '\u200E', ' ', 'g');
 	tmp_value = regexp_replace(tmp_value, '\u200F', ' ', 'g');
 	
+	tmp_value = regexp_replace(tmp_value, '\uFFFD', ' ', 'g');
+	
 	return tmp_value;
 end;
 $$;
