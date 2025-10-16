@@ -1110,11 +1110,11 @@ SELECT
     NULL AS "temoin_ouverte_choix_cursus",-- TODO F.temoin_ouverte_choix_cursus,
     NULL AS "temoin_jamais_ouverte_choix_cursus",-- TODO F.temoin_jamais_ouverte_choix_cursus,
     F.credit_ects,
-    NULL AS "code_structure_budgetaire",-- TODO F.code_structure_budgetaire,
-    NULL AS "code_uai_structure_budgetaire",-- TODO F.code_uai_structure_budgetaire,
+    SB.code AS "code_structure_budgetaire",-- TODO F.code_structure_budgetaire,
+    SB.code_uai AS "code_uai_structure_budgetaire",-- TODO F.code_uai_structure_budgetaire,
     NULL AS "code_referentiel_externe_structure_budgetaire",-- TODO F.code_referentiel_externe_structure_budgetaire,
-    NULL AS "denomination_principale_structure_budgetaire",-- TODO F.denomination_principale_structure_budgetaire,
-    NULL AS "code_tarification",-- TODO F.code_tarification,
+    SB.denomination_principale AS "denomination_principale_structure_budgetaire",-- TODO F.denomination_principale_structure_budgetaire,
+    TAR.code AS "code_tarification",-- TODO F.code_tarification,
     F.code_structure_principale AS "code_structure",
     S.code_referentiel_externe AS "code_structure_externe",
     ESE.libelle_structure_externe_web AS "libelle_structure_externe",
@@ -1132,11 +1132,16 @@ LEFT JOIN schema_pilotage.ref_type_formation RTF ON RTF.code = F.code_type_forma
 LEFT JOIN schema_ref.structure S ON S.code = F.code_structure_principale
 LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe
 
+LEFT JOIN schema_pai.formation PAIF ON (PAIF.code = F.code AND PAIF.code_periode=ESP.code)
+LEFT JOIN schema_pai.structure_budgetaire SB ON SB.id = PAIF.ref
+LEFT JOIN schema_pai.tarification TAR ON TAR.id = PAIF.id_tarification
+
 WHERE F.type_objet_maquette = 'F'
 	AND ESP.type_espace = 'P'
     AND CON.temoin_valide=TRUE
 	
 	--AND F.code='A3CCA-351-V1'
+	--AND ESP.code='PER-2025'
 ;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.odf_formation'; END; $$;
 
