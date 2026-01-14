@@ -117,6 +117,8 @@ declare
    tmp_value character varying;
 begin
 	tmp_value = value;
+	
+	/*
 	tmp_value = regexp_replace(tmp_value, '\u0100', 'A', 'g');
 	tmp_value = regexp_replace(tmp_value, '\u0101', 'a', 'g');
 	tmp_value = regexp_replace(tmp_value, '\u0102', 'A', 'g');
@@ -379,6 +381,7 @@ begin
 	tmp_value = regexp_replace(tmp_value, '\u200F', ' ', 'g');
 	
 	tmp_value = regexp_replace(tmp_value, '\uFFFD', ' ', 'g');
+	*/
 	
 	return tmp_value;
 end;
@@ -1552,16 +1555,17 @@ ALTER TABLE schema_pilotage.odf_objet_formation_chemin ALTER COLUMN id_ancetre_o
 /* création de plusieurs index */
 CREATE UNIQUE INDEX odf_objet_formation_chemin_id_idx ON schema_pilotage.odf_objet_formation_chemin (id);
 --CREATE UNIQUE INDEX odf_objet_formation_chemin_id_objet_formation_idx ON schema_pilotage.odf_objet_formation_chemin (id_objet_formation);
-CREATE INDEX odf_objet_formation_chemin_chemin_uuid_idx ON schema_pilotage.odf_objet_formation_chemin (chemin_uuid);
+CREATE INDEX odf_objet_formation_chemin_chemin_uuid_idx ON schema_pilotage.odf_objet_formation_chemin USING GIN (chemin_uuid);
 CREATE INDEX odf_objet_formation_chemin_chemin_idx ON schema_pilotage.odf_objet_formation_chemin (chemin);
 CREATE INDEX odf_objet_formation_chemin_chemin_parent_idx ON schema_pilotage.odf_objet_formation_chemin (chemin_parent);
+
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE INDEX xxx ON schema_pilotage.odf_objet_formation_chemin'; END; $$;
 
 
 
 
 /* calcule le chemin et chemin_parent */
-DO $$ DECLARE
+/*DO $$ DECLARE
     r RECORD;
 	uuid_chemin_item uuid;
 BEGIN
@@ -1581,7 +1585,22 @@ BEGIN
     END LOOP;
 END $$;
 
-UPDATE schema_pilotage.odf_objet_formation_chemin SET chemin_parent = reverse(SUBSTRING(reverse(chemin), STRPOS(reverse(chemin), '>')+1, CHAR_LENGTH(reverse(chemin)))) WHERE STRPOS(chemin, '>')>0;
+UPDATE schema_pilotage.odf_objet_formation_chemin SET chemin_parent = reverse(SUBSTRING(reverse(chemin), STRPOS(reverse(chemin), '>')+1, CHAR_LENGTH(reverse(chemin)))) WHERE STRPOS(chemin, '>')>0;*/
+UPDATE schema_pilotage.odf_objet_formation_chemin c
+SET chemin = sub.chemin
+FROM (
+    SELECT
+        oc.id,
+        string_agg(om.code, '>' ORDER BY u.ordinality) AS chemin
+    FROM schema_pilotage.odf_objet_formation_chemin oc
+    CROSS JOIN LATERAL unnest(oc.chemin_uuid) WITH ORDINALITY AS u(uuid, ordinality)
+    JOIN schema_odf.objet_maquette om ON om.id = u.uuid
+    GROUP BY oc.id
+) sub
+WHERE sub.id = c.id;
+
+UPDATE schema_pilotage.odf_objet_formation_chemin SET chemin_parent = left(chemin, length(chemin) - strpos(reverse(chemin), '>')) WHERE chemin LIKE '%>%';
+
 
 
 
@@ -1605,7 +1624,8 @@ BEGIN
                               --AND code_periode='PER-2023'
                               ORDER BY code_periode, code_formation, chemin DESC) LOOP
         --UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE objet_formation_ouvert_aux_ia = FALSE AND chemin LIKE r.chemin||'>%' AND code_periode = r.code_periode AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
-        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE r.id_objet_formation=ANY(chemin_uuid) AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        --UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE r.id_objet_formation=ANY(chemin_uuid) AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
     END LOOP;
 END $$;
 
@@ -1663,211 +1683,112 @@ AND OFC.id_objet_formation = FE.id_objet_maquette;
 /* vues concernant les apprenants */
 
 
- /* table temporaire pour mettre tous les attributs sur 1 ligne */
-/*CREATE EXTENSION IF NOT EXISTS tablefunc;
-CREATE TABLE schema_pilotage.temp_user_attributes AS
-	SELECT *
-	FROM CROSSTAB (
-		'SELECT user_id, name, value 
-		FROM schema_keycloak.user_attribute
-		ORDER BY 1;',
-		$$ VALUES 
-			('codeApprenant'::TEXT),
-			('ineMaitre'::TEXT),
-			('etatIneMaitre'::TEXT),
-			('listeINEs'::TEXT),
-			('nomUsage'::TEXT),
-			('prenom2'::TEXT),
-			('prenom3'::TEXT),
-			('sexe'::TEXT),
-			('dateNaissance'::TEXT),
-			('codePaysNaissance'::TEXT),
-			('codeCommuneNaissance'::TEXT),
-			('libelleCommuneNaissanceEtranger'::TEXT),
-			('codeNationalite'::TEXT),
-			('codeNationalite2'::TEXT),
-			('dateObtentionNationalite2'::TEXT),
-			('anneeObtentionBac'::TEXT),
-			('codeTypeSerieBac'::TEXT),
-			('codeMentionBac'::TEXT),
-			('typeEtablissementBac'::TEXT),
-			('codePaysBac'::TEXT),
-			('codeDepartementBac'::TEXT),
-			('codeUAIEtablissementBac'::TEXT),
-			('libelleEtablissementBacEtranger'::TEXT),
-			('complementTitreDispenseBac'::TEXT),
-			('anneeEntreeEnseignementSuperieur'::TEXT),
-			('codeTitreAccesESRFrancais'::TEXT),
-			('anneeEntreeUniversite'::TEXT),
-			('anneeEntreeEtablissement'::TEXT),
-			('codeCategorieSocioProfessionnelle'::TEXT),
-			('codeQuotiteTravaillee'::TEXT),
-			('codeCategorieSocioProfessionnelleParent1'::TEXT),
-			('codeCategorieSocioProfessionnelleParent2'::TEXT),
-			('codeSituationFamiliale'::TEXT),
-			('nombreEnfants'::TEXT),
-			('codeSituationMilitaire'::TEXT),
-			('codePremiereSpecialiteBac'::TEXT),
-			('codeDeuxiemeSpecialiteBac'::TEXT),
-			('idIdentiteLiee'::TEXT),
-			('temoinDoublonPotentiel'::TEXT),
-			('dateModification'::TEXT)
-		$$
-	) AS "ct" (
-		user_id VARCHAR(50),
-		
-		code_apprenant VARCHAR(255),
-		ine_maitre VARCHAR(255),
-		statut_ine_maitre VARCHAR(255),
-		liste_ine VARCHAR(255),
-		nom_usuel VARCHAR(255),
-		prenom2 VARCHAR(255),
-		prenom3 VARCHAR(255),
-		sexe VARCHAR(255),
-		date_naissance VARCHAR(255),
-		code_pays_naissance VARCHAR(255),
-		code_commune_naissance VARCHAR(255),
-		libelle_commune_naissance_etranger VARCHAR(255),
-		code_nationalite VARCHAR(255),
-		code_nationalite2 VARCHAR(255),
-		date_obtention_nationalite2 VARCHAR(255),
-		annee_obtention_bac VARCHAR(255),
-		code_type_ou_serie_bac VARCHAR(255),
-		code_mention_bac VARCHAR(255),
-		type_etablissement_bac VARCHAR(255),
-		code_pays_bac VARCHAR(255),
-		code_departement_bac VARCHAR(255),
-		code_etablissement_bac VARCHAR(255),
-		etablissement_libre_bac VARCHAR(255),
-		precision_titre_dispense_bac VARCHAR(255),
-		annee_entree_enseignement_superieur     VARCHAR(255),
-		code_titre_acces_esr_francais     VARCHAR(255),
-		annee_entree_universite VARCHAR(255),
-		annee_entree_etablissement VARCHAR(255),
-		code_categorie_socioprofessionnelle VARCHAR(255),
-		code_quotite_travaillee VARCHAR(255),
-		code_categorie_socioprofessionnelle_parent1 VARCHAR(255),
-		code_categorie_socioprofessionnelle_parent2 VARCHAR(255),
-		code_situation_familiale VARCHAR(255),
-		nombre_enfants VARCHAR(255),
-		code_situation_militaire VARCHAR(255),
-		code_premiere_specialite_bac VARCHAR(255),
-		code_deuxieme_specialite_bac     VARCHAR(255),
-		id_identite_liee VARCHAR(255),
-		temoin_doublon_potentiel VARCHAR(255),
-		date_de_modification VARCHAR(255)
-	);*/
-
-
-/* clean @yyyy-mm-dd dans keycloak */
-UPDATE schema_keycloak.user_attribute SET value=SPLIT_PART(value, '@', 1) WHERE value ~ '@\d{4}-\d{2}-\d{2}$';
-
-
 /* apprenants */
 CREATE TABLE schema_pilotage.idt_apprenant AS
- SELECT user_entity.id::varchar(255),
-    username AS "identifiant_pegase",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeApprenant' AND user_attribute.user_id=user_entity.id) AS "code_apprenant",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='ineMaitre' AND user_attribute.user_id=user_entity.id) AS "ine_maitre",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='etatIneMaitre' AND user_attribute.user_id=user_entity.id) "statut_ine_maitre",
-
-    (SELECT string_agg(value, ',' ORDER BY value) AS listeINEs
-    FROM schema_keycloak.user_attribute
-    WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id
-    GROUP BY user_id) AS "liste_ine",
-    --(SELECT value FROM schema_keycloak.user_attribute WHERE name='listeINEs' AND user_attribute.user_id=user_entity.id) AS "liste_ine",
+ SELECT APP.id::varchar(255),
+    APP.identifiant_apprenant_pegase AS "identifiant_pegase",
+    APP.code_apprenant,
+    APP.ine_maitre,
+    APP.etat_ine_maitre AS "statut_ine_maitre",
+    array_to_string(APP.liste_ines_alternatifs, ',') AS "liste_ine",
+    ARRAY[APP.ine_maitre] || APP.liste_ines_alternatifs AS "liste_ines_complete",
 	
-    clean_string(last_name) AS "nom_famille",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='nomUsage' AND user_attribute.user_id=user_entity.id) AS "nom_usuel",
-    clean_string(first_name) AS "prenom",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='prenom2' AND user_attribute.user_id=user_entity.id) AS "prenom2",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='prenom3' AND user_attribute.user_id=user_entity.id) AS "prenom3",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='sexe' AND user_attribute.user_id=user_entity.id) AS "sexe",
-    to_date((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateNaissance' AND user_attribute.user_id=user_entity.id), 'YYYY-MM-DD') AS "date_naissance",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePaysNaissance' AND user_attribute.user_id=user_entity.id) AS "code_pays_naissance",
-    NULL::varchar(255) AS "libelle_pays_naissance",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCommuneNaissance' AND user_attribute.user_id=user_entity.id) AS "code_commune_naissance",
-    NULL::varchar(255) AS "libelle_commune_naissance",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='libelleCommuneNaissanceEtranger' AND user_attribute.user_id=user_entity.id) AS "libelle_commune_naissance_etranger",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeNationalite' AND user_attribute.user_id=user_entity.id) AS "code_nationalite",
-    NULL::varchar(255) AS "libelle_nationalite",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeNationalite2' AND user_attribute.user_id=user_entity.id) AS "code_nationalite2",
-    NULL::varchar(255) AS "libelle_nationalite2",
-    to_date((SELECT value FROM schema_keycloak.user_attribute WHERE name='dateObtentionNationalite2' AND user_attribute.user_id=user_entity.id), 'YYYY-MM-DD') AS "date_obtention_nationalite2",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeObtentionBac' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_obtention_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeTypeSerieBac' AND user_attribute.user_id=user_entity.id) AS "code_type_ou_serie_bac",
-    NULL::varchar(255) AS "libelle_type_ou_serie_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeMentionBac' AND user_attribute.user_id=user_entity.id) AS "code_mention_bac",
-    NULL::varchar(255) AS "libelle_mention_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='typeEtablissementBac' AND user_attribute.user_id=user_entity.id) AS "type_etablissement_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePaysBac' AND user_attribute.user_id=user_entity.id) AS "code_pays_bac",
-    NULL::varchar(255) AS "libelle_pays_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeDepartementBac' AND user_attribute.user_id=user_entity.id) AS "code_departement_bac",
-    NULL::varchar(255)AS "libelle_departement_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeUAIEtablissementBac' AND user_attribute.user_id=user_entity.id) AS "code_etablissement_bac",
-    NULL::varchar(255) AS "libelle_etablissement_bac",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='libelleEtablissementBacEtranger' AND user_attribute.user_id=user_entity.id) AS "etablissement_libre_bac",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='complementTitreDispenseBac' AND user_attribute.user_id=user_entity.id) AS "precision_titre_dispense_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeEnseignementSuperieur' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_enseignement_superieur",
+    clean_string(IDT.nom_naissance) AS "nom_famille",
+    clean_string(APP.nom_usage) AS "nom_usuel",
+    clean_string(IDT.prenom) AS "prenom",
+    clean_string(APP.prenom2) AS "prenom2",
+    clean_string(APP.prenom3) AS "prenom3",
+    APP.sexe AS "sexe",
+    APP.date_naissance,
+    APP.code_pays_naissance,
+    P1.libelle_long AS "libelle_pays_naissance",
+    APP.code_commune_naissance,
+    C.libelle_long AS "libelle_commune_naissance",
+    APP.libelle_commune_naissance_etranger,
+    APP.code_nationalite,
+    P2.libelle_nationalite AS "libelle_nationalite",
+    APP.code_nationalite2,
+    P3.libelle_nationalite AS "libelle_nationalite2",
+    APP.date_obtention_nationalite2,
+    APP.annee_obtention_bac,
+    APP.code_serie_bac AS "code_type_ou_serie_bac",
+    SB.libelle_long AS "libelle_type_ou_serie_bac",
+    APP.code_mention_bac,
+    MB.libelle_long AS "libelle_mention_bac",
+    APP.type_etablissement_bac,
+    APP.code_pays_bac,
+    P4.libelle_long AS "libelle_pays_bac",
+    APP.code_departement_bac,
+    UPPER(D.libelle_affichage) AS "libelle_departement_bac",
+    APP.code_etablissement_bac,
+    UPPER(EF.libelle_affichage) AS "libelle_etablissement_bac",
+    clean_string(APP.libelle_etablissement_bac_etranger) AS "etablissement_libre_bac",
+    APP.complement_titre_dispense_bac AS "precision_titre_dispense_bac",
+    APP.annee_entree_ens_sup AS "annee_entree_enseignement_superieur",
     
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeTitreAccesESRFrancais' AND user_attribute.user_id=user_entity.id) AS "code_titre_acces_esr_francais",
-    NULL::varchar(255) AS "libelle_titre_acces_esr_francais",
+    APP.code_titre_acces_esr_fr AS "code_titre_acces_esr_francais",
+    AEF.libelle_long AS "libelle_titre_acces_esr_francais",
     
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeUniversite' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_universite",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='anneeEntreeEtablissement' AND user_attribute.user_id=user_entity.id)::INTEGER AS "annee_entree_etablissement",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelle' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle",
-    NULL::varchar(255) AS "libelle_categorie_socioprofessionnelle",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeQuotiteTravaillee' AND user_attribute.user_id=user_entity.id) AS "code_quotite_travaillee",
-    NULL::varchar(255) AS "libelle_quotite_travaillee",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelleParent1' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle_parent1",
-    NULL::varchar(255) AS "libelle_socioprofessionnelle_parent1",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeCategorieSocioProfessionnelleParent2' AND user_attribute.user_id=user_entity.id) AS "code_categorie_socioprofessionnelle_parent2",
-    NULL::varchar(255) AS "libelle_socioprofessionnelle_parent2",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeSituationFamiliale' AND user_attribute.user_id=user_entity.id) AS "code_situation_familiale",
-    NULL::varchar(255) AS "libelle_situation_familiale",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='nombreEnfants' AND user_attribute.user_id=user_entity.id)::INTEGER AS "nombre_enfants",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeSituationMilitaire' AND user_attribute.user_id=user_entity.id) AS "code_situation_militaire",
-    NULL::varchar(255) AS "libelle_situation_militaire",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codePremiereSpecialiteBac' AND user_attribute.user_id=user_entity.id) AS "code_premiere_specialite_bac",
-    NULL::varchar(255) AS "libelle_premiere_specialite_bac",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='codeDeuxiemeSpecialiteBac' AND user_attribute.user_id=user_entity.id) AS "code_deuxieme_specialite_bac",
-    NULL::varchar(255) AS "libelle_deuxieme_specialite_bac",
+    APP.annee_entree_universite,
+    APP.annee_entree_etablissement,
+    APP.code_categorie_socio_professionnelle AS "code_categorie_socioprofessionnelle",
+    CSP1.libelle_long AS "libelle_categorie_socioprofessionnelle",
+    APP.code_quotite_travaillee,
+    QA.libelle_long AS "libelle_quotite_travaillee",
+    APP.code_categorie_socio_prof_parent1 AS "code_categorie_socioprofessionnelle_parent1",
+    CSP2.libelle_long AS "libelle_socioprofessionnelle_parent1",
+    APP.code_categorie_socio_prof_parent2 AS "code_categorie_socioprofessionnelle_parent2",
+    CSP3.libelle_long AS "libelle_socioprofessionnelle_parent2",
+    APP.code_situation_familiale,
+    SF.libelle_long AS "libelle_situation_familiale",
+    APP.nombre_enfants,
+    APP.code_situation_militaire,
+    SM.libelle_long AS "libelle_situation_militaire",
+    APP.code_premiere_specialite_bac,
+    SP1.libelle_long AS "libelle_premiere_specialite_bac",
+    APP.code_deuxieme_specialite_bac,
+    SP2.libelle_long AS "libelle_deuxieme_specialite_bac",
     
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='idIdentiteLiee' AND user_attribute.user_id=user_entity.id) AS "id_identite_liee",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='temoinDoublonPotentiel' AND user_attribute.user_id=user_entity.id) AS "temoin_doublon_potentiel",
-    to_timestamp(created_timestamp::BIGINT / 1000) AS "date_de_creation",
-    to_timestamp((SELECT max(value) FROM schema_keycloak.user_attribute WHERE name='dateModification' AND user_attribute.user_id=user_entity.id)::BIGINT / 1000) AS "date_de_modification"
+    APP.id_appr_lie AS "id_identite_liee",
+    APP.temoin_doublon_potentiel AS "temoin_doublon_potentiel",
+    IDT.date_creation AS "date_de_creation",
+    IDT.date_modification AS "date_de_modification"
 
-FROM schema_keycloak.user_entity
---WHERE username LIKE '%.%'
+FROM schema_idt.apprenant APP
+   
+LEFT JOIN schema_idt.identite IDT ON APP.id=IDT.id
+LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = APP.code_pays_naissance
+LEFT JOIN schema_pilotage.ref_pays_nationalite P2 ON P2.code = APP.code_nationalite
+LEFT JOIN schema_pilotage.ref_pays_nationalite P3 ON P3.code = APP.code_nationalite2
+LEFT JOIN schema_pilotage.ref_pays_nationalite P4 ON P4.code = APP.code_pays_bac
+LEFT JOIN schema_pilotage.ref_specialites_bac SP1 ON SP1.code_metier = APP.code_premiere_specialite_bac
+LEFT JOIN schema_pilotage.ref_specialites_bac SP2 ON SP2.code_metier = APP.code_deuxieme_specialite_bac
+LEFT JOIN schema_pilotage.ref_commune_insee C ON C.code_insee = APP.code_commune_naissance
+LEFT JOIN schema_pilotage.ref_departement D ON D.code = APP.code_departement_bac
+LEFT JOIN schema_pilotage.ref_serie_bac SB ON SB.code = APP.code_serie_bac
+LEFT JOIN schema_pilotage.ref_mention_bac MB ON MB.code_metier = APP.code_mention_bac
+LEFT JOIN schema_pilotage.ref_titre_acces AEF ON AEF.code = APP.code_titre_acces_esr_fr
+LEFT JOIN schema_pilotage.ref_categorie_socioprofessionnelle CSP1 ON CSP1.code = APP.code_categorie_socio_professionnelle
+LEFT JOIN schema_pilotage.ref_categorie_socioprofessionnelle CSP2 ON CSP2.code = APP.code_categorie_socio_prof_parent1
+LEFT JOIN schema_pilotage.ref_categorie_socioprofessionnelle CSP3 ON CSP3.code = APP.code_categorie_socio_prof_parent2
+LEFT JOIN schema_pilotage.ref_etablissement_francais EF ON EF.code = APP.code_etablissement_bac
+LEFT JOIN schema_pilotage.ref_quotite_activite QA ON QA.code_metier = APP.code_quotite_travaillee
+LEFT JOIN schema_pilotage.ref_situation_familiale SF ON SF.code_metier = APP.code_situation_familiale
+LEFT JOIN schema_pilotage.ref_situation_militaire SM ON SM.code_metier = APP.code_situation_militaire
+   
+
+WHERE APP.code_apprenant IS NOT NULL
+
+--AND username LIKE '%.%'
 --LIMIT 500
 ;
 
 ALTER TABLE schema_pilotage.idt_apprenant ADD PRIMARY KEY (id);
 CREATE UNIQUE INDEX idt_apprenant_id_idx ON schema_pilotage.idt_apprenant (id);
 CREATE INDEX idt_apprenant_code_apprenant_idx ON schema_pilotage.idt_apprenant (code_apprenant);
-
+CREATE INDEX idt_apprenant_liste_ines_complete_idx ON schema_pilotage.idt_apprenant USING GIN (liste_ines_complete);
 
 UPDATE schema_pilotage.idt_apprenant SET ine_maitre = NULL WHERE ine_maitre = 'N/A';
-
-UPDATE schema_pilotage.idt_apprenant SET libelle_pays_naissance = P1.libelle_long FROM schema_pilotage.ref_pays_nationalite P1 WHERE P1.code = idt_apprenant.code_pays_naissance;
-UPDATE schema_pilotage.idt_apprenant SET libelle_nationalite = P2.libelle_nationalite FROM schema_pilotage.ref_pays_nationalite P2 WHERE P2.code = idt_apprenant.code_nationalite;
-UPDATE schema_pilotage.idt_apprenant SET libelle_nationalite2 = P3.libelle_nationalite FROM schema_pilotage.ref_pays_nationalite P3 WHERE P3.code = idt_apprenant.code_nationalite2;
-UPDATE schema_pilotage.idt_apprenant SET libelle_pays_bac = P4.libelle_long FROM schema_pilotage.ref_pays_nationalite P4 WHERE P4.code = idt_apprenant.code_pays_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_premiere_specialite_bac = SP1.libelle_long FROM schema_pilotage.ref_specialites_bac SP1 WHERE SP1.code_metier = idt_apprenant.code_premiere_specialite_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_deuxieme_specialite_bac = SP2.libelle_long FROM schema_pilotage.ref_specialites_bac SP2 WHERE SP2.code_metier = idt_apprenant.code_deuxieme_specialite_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_commune_naissance = C.libelle_long FROM schema_pilotage.ref_commune_insee C WHERE C.code_insee = idt_apprenant.code_commune_naissance;
-UPDATE schema_pilotage.idt_apprenant SET libelle_departement_bac = UPPER(D.libelle_affichage) FROM schema_pilotage.ref_departement D WHERE D.code = idt_apprenant.code_departement_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_type_ou_serie_bac = SB.libelle_long FROM schema_pilotage.ref_serie_bac SB WHERE SB.code = idt_apprenant.code_type_ou_serie_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_mention_bac = MB.libelle_long FROM schema_pilotage.ref_mention_bac MB WHERE MB.code_metier = idt_apprenant.code_mention_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_titre_acces_esr_francais = AEF.libelle_long FROM schema_pilotage.ref_titre_acces AEF WHERE AEF.code = idt_apprenant.code_titre_acces_esr_francais;
-UPDATE schema_pilotage.idt_apprenant SET libelle_categorie_socioprofessionnelle = CSP1.libelle_long FROM schema_pilotage.ref_categorie_socioprofessionnelle CSP1 WHERE CSP1.code = idt_apprenant.code_categorie_socioprofessionnelle;
-UPDATE schema_pilotage.idt_apprenant SET libelle_socioprofessionnelle_parent1 = CSP2.libelle_long FROM schema_pilotage.ref_categorie_socioprofessionnelle CSP2 WHERE CSP2.code = idt_apprenant.code_categorie_socioprofessionnelle_parent1;
-UPDATE schema_pilotage.idt_apprenant SET libelle_socioprofessionnelle_parent2 = CSP3.libelle_long FROM schema_pilotage.ref_categorie_socioprofessionnelle CSP3 WHERE CSP3.code = idt_apprenant.code_categorie_socioprofessionnelle_parent2;
-UPDATE schema_pilotage.idt_apprenant SET libelle_etablissement_bac = UPPER(EF.libelle_affichage) FROM schema_pilotage.ref_etablissement_francais EF WHERE EF.code = idt_apprenant.code_etablissement_bac;
-UPDATE schema_pilotage.idt_apprenant SET libelle_quotite_travaillee = QA.libelle_long FROM schema_pilotage.ref_quotite_activite QA WHERE QA.code_metier = idt_apprenant.code_quotite_travaillee;
-UPDATE schema_pilotage.idt_apprenant SET libelle_situation_familiale = SF.libelle_long FROM schema_pilotage.ref_situation_familiale SF WHERE SF.code_metier = idt_apprenant.code_situation_familiale;
-UPDATE schema_pilotage.idt_apprenant SET libelle_situation_militaire = SM.libelle_long FROM schema_pilotage.ref_situation_militaire SM WHERE SM.code_metier = idt_apprenant.code_situation_militaire;
 
 /*SELECT * FROM schema_pilotage.idt_apprenant;*/
 
@@ -1884,46 +1805,52 @@ UPDATE schema_pilotage.idt_apprenant SET libelle_situation_militaire = SM.libell
 
 /* adresse fixe */
 CREATE TABLE schema_pilotage.idt_contact_adresse_fixe AS
- SELECT user_entity.id::varchar(255) AS "id_apprenant",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseFixeProprietaire' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_proprietaire",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adresseFixeCodePostal' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_code_postal",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adresseFixeCodeCommune' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_code_commune",
-    NULL::varchar(255) AS "adresse_fixe_libelle_commune",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseFixeLigne1Etage' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_ligne1_ou_etage",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseFixeLigne2Batiment' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_ligne2_ou_batiment",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseFixeLigne3Voie' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_ligne3_ou_voie",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseFixeLigne4Complement' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_ligne4_ou_complement",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseFixeLigne5Etranger' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_ligne5_etranger",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adresseFixeCodePays' AND user_attribute.user_id=user_entity.id) AS "adresse_fixe_code_pays",
-    NULL::varchar(255) AS "adresse_fixe_libelle_pays"
+ SELECT id::varchar(255) AS "id_apprenant",
+    clean_string(adresse_fixe_proprietaire) AS "adresse_fixe_proprietaire",
+    code_postal_fixe AS "adresse_fixe_code_postal",
+    code_commune_fixe AS "adresse_fixe_code_commune",
+    C.libelle_long AS "adresse_fixe_libelle_commune",
+    clean_string(adresse_fixe_ligne1_etage) AS "adresse_fixe_ligne1_ou_etage",
+    clean_string(adresse_fixe_ligne2_batiment) AS "adresse_fixe_ligne2_ou_batiment",
+    clean_string(adresse_fixe_ligne3_voie) AS "adresse_fixe_ligne3_ou_voie",
+    clean_string(adresse_fixe_ligne4_complement) AS "adresse_fixe_ligne4_ou_complement",
+    clean_string(adresse_fixe_ligne5_etranger) AS "adresse_fixe_ligne5_etranger",
+    code_pays_fixe AS "adresse_fixe_code_pays",
+    P1.libelle_long AS "adresse_fixe_libelle_pays"
 
-FROM schema_keycloak.user_entity;
+FROM schema_idt.apprenant
+
+LEFT JOIN schema_pilotage.ref_commune_insee C ON C.code_insee = apprenant.code_commune_fixe
+LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = apprenant.code_pays_fixe;
+
+
 CREATE UNIQUE INDEX idt_contact_adresse_fixe_id_idx ON schema_pilotage.idt_contact_adresse_fixe (id_apprenant);
 
-UPDATE schema_pilotage.idt_contact_adresse_fixe SET adresse_fixe_libelle_commune = C.libelle_long FROM schema_pilotage.ref_commune_insee C WHERE C.code_insee = idt_contact_adresse_fixe.adresse_fixe_code_commune;
-UPDATE schema_pilotage.idt_contact_adresse_fixe SET adresse_fixe_libelle_pays = P1.libelle_long FROM schema_pilotage.ref_pays_nationalite P1 WHERE P1.code = idt_contact_adresse_fixe.adresse_fixe_code_pays;
+
     
 
 
 /* adresse annuelle */
 CREATE TABLE schema_pilotage.idt_contact_adresse_annuelle AS
- SELECT user_entity.id::varchar(255) AS "id_apprenant",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adressePeriodeUCodePostal' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_code_postal",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adressePeriodeUCodeCommune' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_code_commune",
-    NULL::varchar(255) AS "adresse_annuelle_libelle_commune",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adressePeriodeULigne1Etage' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_ligne1_ou_etage",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adressePeriodeULigne2Batiment' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_ligne2_ou_batiment",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adressePeriodeULigne3Voie' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_ligne3_ou_voie",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adressePeriodeULigne4Complement' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_ligne4_ou_complement",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adressePeriodeULigne5Etranger' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_ligne5_etranger",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adressePeriodeUCodePays' AND user_attribute.user_id=user_entity.id) AS "adresse_annuelle_code_pays",
-    NULL::varchar(255) AS "adresse_annuelle_libelle_pays"
+ SELECT id::varchar(255) AS "id_apprenant",
+    code_postal_periode_universitaire AS "adresse_annuelle_code_postal",
+    code_commune_periode_universitaire AS "adresse_annuelle_code_commune",
+    C.libelle_long AS "adresse_annuelle_libelle_commune",
+    clean_string(adresse_periode_universitaire_ligne1_etage)AS "adresse_annuelle_ligne1_ou_etage",
+    clean_string(adresse_periode_universitaire_ligne2_batiment)AS "adresse_annuelle_ligne2_ou_batiment",
+    clean_string(adresse_periode_universitaire_ligne3_voie)AS "adresse_annuelle_ligne3_ou_voie",
+    clean_string(adresse_periode_universitaire_ligne4_complement)AS "adresse_annuelle_ligne4_ou_complement",
+    clean_string(adresse_periode_universitaire_ligne5_etranger)AS "adresse_annuelle_ligne5_etranger",
+    code_pays_periode_universitaire AS "adresse_annuelle_code_pays",
+    P1.libelle_long AS "adresse_annuelle_libelle_pays"
 
-FROM schema_keycloak.user_entity;
+FROM schema_idt.apprenant
+
+LEFT JOIN schema_pilotage.ref_commune_insee C ON C.code_insee = apprenant.code_commune_periode_universitaire
+LEFT JOIN schema_pilotage.ref_pays_nationalite P1 ON P1.code = apprenant.code_pays_periode_universitaire;
+
+
 CREATE UNIQUE INDEX idt_contact_adresse_annuelle_id_idx ON schema_pilotage.idt_contact_adresse_annuelle (id_apprenant);
-
-UPDATE schema_pilotage.idt_contact_adresse_annuelle SET adresse_annuelle_libelle_commune = C.libelle_long FROM schema_pilotage.ref_commune_insee C WHERE C.code_insee = idt_contact_adresse_annuelle.adresse_annuelle_code_commune;
-UPDATE schema_pilotage.idt_contact_adresse_annuelle SET adresse_annuelle_libelle_pays = P1.libelle_long FROM schema_pilotage.ref_pays_nationalite P1 WHERE P1.code = idt_contact_adresse_annuelle.adresse_annuelle_code_pays;
 
 
 
@@ -1931,21 +1858,21 @@ UPDATE schema_pilotage.idt_contact_adresse_annuelle SET adresse_annuelle_libelle
 
 /* mail perso */
 CREATE TABLE schema_pilotage.idt_contact_mail_perso AS
- SELECT user_entity.id::varchar(255) AS "id_apprenant",
-    email AS "mail_perso"
+ SELECT id::varchar(255) AS "id_apprenant",
+    mail AS "mail_perso"
 
-   FROM schema_keycloak.user_entity;
+   FROM schema_idt.identite;
 CREATE UNIQUE INDEX idt_contact_mail_perso_id_idx ON schema_pilotage.idt_contact_mail_perso (id_apprenant);
 
 
 
 /* mail de secours */
 CREATE TABLE schema_pilotage.idt_contact_mail_secours AS
- SELECT user_entity.id::varchar(255) AS "id_apprenant",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='adresseElectroniqueSecoursProprietaire' AND user_attribute.user_id=user_entity.id) AS "mail_secours_proprietaire",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='adresseElectroniqueSecours' AND user_attribute.user_id=user_entity.id) AS "mail_secours"
+ SELECT id::varchar(255) AS "id_apprenant",
+    clean_string(mail_secours_proprietaire) AS "mail_secours_proprietaire",
+    mail_secours AS "mail_secours"
 
-FROM schema_keycloak.user_entity;
+FROM  schema_idt.apprenant;
 CREATE UNIQUE INDEX idt_contact_mail_secours_id_idx ON schema_pilotage.idt_contact_mail_secours (id_apprenant);
 
 
@@ -1953,21 +1880,21 @@ CREATE UNIQUE INDEX idt_contact_mail_secours_id_idx ON schema_pilotage.idt_conta
 
 /* telephone perso */
 CREATE TABLE schema_pilotage.idt_contact_telephone_perso AS
- SELECT user_entity.id::varchar(255) AS "id_apprenant",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='telephonePortablePersonnel' AND user_attribute.user_id=user_entity.id) AS "telephone_perso"
+ SELECT id::varchar(255) AS "id_apprenant",
+    telephone_portable_personnel AS "telephone_perso"
 
-FROM schema_keycloak.user_entity;
+FROM schema_idt.identite;
 CREATE UNIQUE INDEX idt_contact_telephone_perso_id_idx ON schema_pilotage.idt_contact_telephone_perso (id_apprenant);
 
 
 
 /* telephone contact d'urgence */
 CREATE TABLE schema_pilotage.idt_contact_telephone_urgence AS
- SELECT user_entity.id::varchar(255) AS "id_apprenant",
-    (SELECT clean_string(value) FROM schema_keycloak.user_attribute WHERE name='telephoneContactUrgenceProprietaire' AND user_attribute.user_id=user_entity.id) AS "telephone_urgence_proprietaire",
-    (SELECT value FROM schema_keycloak.user_attribute WHERE name='telephoneContactUrgence' AND user_attribute.user_id=user_entity.id) AS "telephone_urgence"
+ SELECT id::varchar(255) AS "id_apprenant",
+    clean_string(telephone_urgence_proprietaire) AS "telephone_urgence_proprietaire",
+    telephone_urgence AS "telephone_urgence"
 
-FROM schema_keycloak.user_entity;
+FROM  schema_idt.apprenant;
 CREATE UNIQUE INDEX idt_contact_telephone_urgence_id_idx ON schema_pilotage.idt_contact_telephone_urgence (id_apprenant);
 
 
@@ -2118,9 +2045,30 @@ ORDER BY code_periode, code_metier;
 /* vues concernant les inscriptions administratives */
 
 
+/* Tables en majuscule pour optimiser les comparaisons de chaines */
+/*CREATE TABLE schema_pilotage.temp_schema_ins_admis_maj AS 
+SELECT id,
+	UPPER(mail) AS "mail",
+	UPPER(nom_naissance) AS "nom_naissance",
+	UPPER(prenom) AS "prenom",
+	date_fin_csv_job
+FROM schema_ins.admis;
+
+
+/* Tables en majuscule pour optimiser les comparaisons de chaines */
+CREATE TABLE schema_pilotage.temp_schema_ins_apprenant_maj AS 
+SELECT IAPP.id::varchar AS "id", 
+	UPPER(IAPP.mail) AS "mail",
+	UPPER(IAPP.nom_naissance) AS "nom_naissance",
+	UPPER(IAPP.prenom) AS "prenom"
+FROM schema_ins.apprenant IAPP;*/
+
+
+
+
 /* ADMIS avec ou sans inscription en cours ou terminée */
 CREATE TABLE schema_pilotage.ins_admis AS
- SELECT admis.id AS "id",
+ SELECT ADMIS.id AS "id",
 	NULL AS "numero_candidat",
 	APP.id AS "id_apprenant",
 	APP.code_apprenant,
@@ -2197,20 +2145,22 @@ CREATE TABLE schema_pilotage.ins_admis AS
 	CONT.telephone_urgence AS "telephone1",
 	CONT.telephone_perso AS "telephone2",
 	CONT.mail_perso AS "mail",
-	admis.date_fin_csv_job AS "date_de_creation",
-	admis.date_fin_csv_job AS "date_de_modification"
+	ADMIS.date_fin_csv_job AS "date_de_creation",
+	ADMIS.date_fin_csv_job AS "date_de_modification"
 
-   FROM schema_ins.admis,
-	schema_ins.apprenant IAPP,
+   FROM schema_ins.admis ADMIS,
+	--schema_pilotage.temp_schema_ins_admis_maj ADMIS,
+	--schema_pilotage.temp_schema_ins_apprenant_maj IAPP,
 	schema_pilotage.idt_apprenant APP,
 	schema_pilotage.idt_contacts CONT
 
-   WHERE IAPP.mail ilike admis.mail AND IAPP.nom_naissance ilike admis.nom_naissance AND IAPP.prenom ilike admis.prenom
-	AND IAPP.id::varchar = APP.id
+   WHERE APP.liste_ines_complete @> ARRAY[admis.INE]
+   --IAPP.mail = ADMIS.mail AND IAPP.nom_naissance = ADMIS.nom_naissance AND IAPP.prenom = ADMIS.prenom
+   --AND IAPP.id::varchar = APP.id
 	AND CONT.id_apprenant = APP.id;
    
    
-CREATE UNIQUE INDEX ins_admis_id_idx ON schema_pilotage.ins_admis (id);
+CREATE INDEX ins_admis_id_idx ON schema_pilotage.ins_admis (id);
 CREATE INDEX ins_admis_id_apprenant_idx ON schema_pilotage.ins_admis (id_apprenant);
 
 
