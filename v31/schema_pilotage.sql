@@ -1059,6 +1059,32 @@ CREATE TABLE schema_pilotage.ref_titre_acces AS
     libelle_affichage
    FROM schema_ref.titre_acces;
 
+
+
+
+
+CREATE TABLE schema_pilotage.ref_structure AS
+ SELECT id,
+    code,
+    code_referentiel_externe,
+    code_uai,
+    denomination_principale,
+    denomination_complementaire,
+    appellation_officielle,
+    commentaire,
+    date_debut_validite,
+    date_fin_validite,
+    temoin_visible,
+    sigle_uai,
+    type_uai_code,
+    type_uai_libelle,
+    categorie_juridique_code,
+    categorie_juridique_libelle,
+    id_parent,
+    temoin_est_structure_mere
+
+   FROM schema_ref.structure;
+
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.ref_xxxxxxxxxxxxxxxxx'; END; $$;
 
 
@@ -1066,6 +1092,30 @@ CREATE TABLE schema_pilotage.ref_titre_acces AS
 /* ************************************************************************** */
 /* vues concernant l'offre de formation */
 
+   
+   
+   
+/* espaces / periodes */
+CREATE TABLE schema_pilotage.odf_espace AS
+SELECT 
+    id,
+    type_espace,
+    code_structure,
+    code,
+    libelle_court,
+    libelle_affichage,
+    libelle_long,
+    version,
+    annee_universitaire,
+    temoin_active,
+    date_debut_validite,
+    date_fin_validite
+    
+FROM schema_odf.espace;
+
+
+
+   
 
 /* liste des formations */
 CREATE TABLE schema_pilotage.odf_formation AS
@@ -1337,6 +1387,7 @@ SELECT
 	OM.id AS "id_objet_formation",
 	OM.code AS "code_objet_formation",
     CON.temoin_inscription_administrative AS "objet_formation_ouvert_aux_ia",
+    CON.temoin_inscription_administrative_active AS "objet_formation_ouvert_aux_ia_actif",
     
 	NULL AS id_ancetre_ouvert_aux_ia,
 	NULL AS "chemin_ancetre_ouvert_aux_ia",
@@ -1458,6 +1509,7 @@ GROUP BY
     OM.id,
     OM.code,
     CON.temoin_inscription_administrative,
+    CON.temoin_inscription_administrative_active,
     OM.libelle_court,
     OM.libelle_long,
     OM.description,
@@ -1649,7 +1701,8 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 /* formats d'enseignement */
 CREATE TABLE schema_pilotage.odf_format_enseignement AS
 SELECT
-    OFC.id_formation,
+    FE.id,
+	--OFC.id_formation,
 	OFC.id_formation_porteuse AS "id_formation_porteuse_charge",
     FE.id_objet_maquette AS "id_objet_formation",
     FE.type_heure AS "code_format",
@@ -1659,22 +1712,38 @@ SELECT
     CAST (RTH.equivalent_hetd AS NUMERIC),
 	
 	FE.volume_horaire,
-	CAST (FE.volume_horaire/60/60 AS INTEGER) AS volume_horaire_heure,
-	CAST ((FE.volume_horaire - (CAST (FE.volume_horaire/60/60 AS INTEGER))*60*60)/60 AS INTEGER) AS volume_horaire_minute,
+	FLOOR(FE.volume_horaire / 3600)::INTEGER AS volume_horaire_heure,
+	CAST ((FE.volume_horaire - (FLOOR(FE.volume_horaire / 3600)::INTEGER)*3600)/60 AS INTEGER) AS volume_horaire_minute,
     FE.nombre_theorique_groupe AS "nombre_theorique_groupes",
     FE.seuil_dedoublement,
-    FE.modalite AS "code_modalite",
+    
+    CASE  
+		WHEN FE.modalite='' THEN NULL
+		ELSE FE.modalite
+	END AS "code_modalite",
+    
     RME.libelle_court AS "libelle_court_modalite",
     RME.libelle_long AS "libelle_long_modalite"
 	
-FROM schema_odf.formats_enseignement FE,
-	schema_pilotage.ref_modalite_enseignement RME,
-	schema_pilotage.ref_type_heure RTH,
-	schema_pilotage.odf_objet_formation_chemin OFC
-	
-WHERE  FE.modalite = RME.code_metier
-AND FE.type_heure = RTH.code_metier
-AND OFC.id_objet_formation = FE.id_objet_maquette;
+FROM schema_odf.formats_enseignement FE
+JOIN schema_pilotage.ref_type_heure RTH ON FE.type_heure = RTH.code_metier
+JOIN schema_pilotage.odf_objet_formation_chemin OFC ON OFC.id_objet_formation = FE.id_objet_maquette
+LEFT JOIN schema_pilotage.ref_modalite_enseignement RME ON FE.modalite = RME.code_metier
+
+GROUP BY FE.id,
+	--OFC.id_formation,
+	OFC.id_formation_porteuse,
+    FE.id_objet_maquette,
+    FE.type_heure,
+    RTH.libelle_court,
+    RTH.libelle_long,
+	RTH.equivalent_hetd,
+	FE.volume_horaire,
+    FE.nombre_theorique_groupe,
+    FE.seuil_dedoublement,
+    FE.modalite,
+    RME.libelle_court,
+    RME.libelle_long;
 
 
 
