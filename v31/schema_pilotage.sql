@@ -1981,6 +1981,16 @@ CREATE UNIQUE INDEX idt_contact_mail_perso_id_idx ON schema_pilotage.idt_contact
 
 
 
+/* mail institutionnel */
+CREATE TABLE schema_pilotage.idt_contact_mail_institutionnel AS
+ SELECT id::varchar(255) AS "id_apprenant",
+    mail_institutionnel AS "mail_institutionnel"
+
+   FROM schema_idt.apprenant;
+CREATE UNIQUE INDEX idt_contact_mail_institutionnel_id_idx ON schema_pilotage.idt_contact_mail_institutionnel (id_apprenant);
+
+
+
 /* mail de secours */
 CREATE TABLE schema_pilotage.idt_contact_mail_secours AS
  SELECT id::varchar(255) AS "id_apprenant",
@@ -2027,9 +2037,11 @@ CREATE VIEW schema_pilotage.idt_contacts AS
  SELECT APP.id AS "id_apprenant",
     ETAB.mail AS "mail_etab",
     
+    ICMI.mail_institutionnel,
     ICMP.mail_perso,
     ICMS.mail_secours_proprietaire,
     ICMS.mail_secours,
+    
     
     ICTP.telephone_perso,
     ICTU.telephone_urgence_proprietaire,
@@ -2060,6 +2072,7 @@ CREATE VIEW schema_pilotage.idt_contacts AS
 
    FROM schema_pilotage.idt_apprenant APP
    LEFT JOIN schema_pilotage.etab_apprenant ETAB ON ETAB.id_apprenant = APP.id
+   LEFT JOIN schema_pilotage.idt_contact_mail_institutionnel ICMI ON ICMI.id_apprenant = APP.id
    LEFT JOIN schema_pilotage.idt_contact_mail_perso ICMP ON ICMP.id_apprenant = APP.id
    LEFT JOIN schema_pilotage.idt_contact_mail_secours ICMS ON ICMS.id_apprenant = APP.id
    LEFT JOIN schema_pilotage.idt_contact_telephone_perso ICTP ON ICTP.id_apprenant = APP.id
