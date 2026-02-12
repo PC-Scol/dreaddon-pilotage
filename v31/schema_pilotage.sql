@@ -2897,27 +2897,29 @@ ALTER TABLE schema_pilotage.coc_note_resultat ADD PRIMARY KEY (id, id_apprenant)
 /* diplômes evaluation */
 CREATE TABLE schema_pilotage.coc_diplome_evaluation AS
 SELECT 
-    id,
-    id_diplome,
-    id_apprenant,
-    note,
-    etat_note,
-    point_jury,
-    etat_point_jury,
-    note_finale,
-    etat_note_finale,
-    resultat,
-    etat_resultat,
-    mention,
-    etat_mention,
-    rang,
-    etat_rang,
-    grade_ects,
-    etat_grade_ects,
-    gpa,
-    etat_gpa,
-    date_deliberation
-FROM schema_coc.diplome_evaluation;
+    DE.id,
+    DE.id_diplome,
+    CAPP.uuid::varchar AS "id_apprenant",
+    DE.note,
+    DE.etat_note,
+    DE.point_jury,
+    DE.etat_point_jury,
+    DE.note_finale,
+    DE.etat_note_finale,
+    DE.resultat,
+    DE.etat_resultat,
+    DE.mention,
+    DE.etat_mention,
+    DE.rang,
+    DE.etat_rang,
+    DE.grade_ects,
+    DE.etat_grade_ects,
+    DE.gpa,
+    DE.etat_gpa,
+    DE.date_deliberation
+FROM schema_coc.diplome_evaluation DE,
+schema_coc.apprenant CAPP
+WHERE CAPP.id = DE.id_apprenant;
 
 
 
@@ -2979,8 +2981,8 @@ FROM schema_coc.apprenant_diplome AD
 LEFT JOIN schema_coc.diplome D ON D.id = AD.id_diplome
 LEFT JOIN schema_coc.periode P ON P.id = D.id_periode
 LEFT JOIN schema_coc.apprenant CA ON CA.id = AD.id_apprenant
-LEFT JOIN schema_pilotage.idt_apprenant APP ON APP.code_apprenant = CA.code
-LEFT JOIN schema_pilotage.coc_diplome_evaluation CDE ON CDE.id_diplome = D.id AND CDE.id_apprenant = CA.id
+LEFT JOIN schema_pilotage.idt_apprenant APP ON APP.id = CA.uuid::varchar
+LEFT JOIN schema_pilotage.coc_diplome_evaluation CDE ON CDE.id_diplome = D.id AND CDE.id_apprenant = CA.uuid::varchar
 LEFT JOIN schema_pilotage.ref_mention_honorifique RMH ON RMH.code_metier = CDE.mention
 
 LEFT JOIN schema_pilotage.ref_finalite_formation RFF ON RFF.code_metier = D.type_finalite_formation_code
