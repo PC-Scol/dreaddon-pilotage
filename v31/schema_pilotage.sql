@@ -1,16 +1,14 @@
+/* ************************************************************************** */
+/* PERSONNALISATION ETABLISSEMENT */
 
-/* TODO v28 */
+/* liste des périodes à personnaliser par l'établissement */
+SET my.periodes_rdd = '{PER-2014,PER-2015,PER-2016,PER-2017,PER-2018,PER-2019,PER-2020,PER-2021}';
 
-/* tables pour les autres INE */
 
-/* CHC */
 
-/* Revoir le script pour les comptes temporaires SINAPS */
+/* ************************************************************************** */
+/* STRUCTURES DE DONNÉES */
 
-/* dire à Fred que :
-	schema_pilotage.ins_inscription a bien évolué (nouveaux attributs, donc refaire le tour ...)
-	
-*/
 
 
 /* table avec mails établissement */
@@ -52,6 +50,26 @@ CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe
 )
 TABLESPACE pg_default;
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE IF NOT EXISTS schema_pilotage.etab_structure_externe'; END; $$;
+
+
+
+
+/* table avec codes de périodes de la RDD à ne pas intégrer dans les maquettes de formation du schéma pilotage */
+CREATE TABLE IF NOT EXISTS schema_pilotage.etab_periodes_rdd
+(
+    code_periode character varying(50) COLLATE pg_catalog."default",
+    CONSTRAINT code_periode_pkey PRIMARY KEY (code_periode)
+)
+TABLESPACE pg_default;
+
+
+TRUNCATE TABLE schema_pilotage.etab_periodes_rdd;
+
+INSERT INTO schema_pilotage.etab_periodes_rdd (code_periode)
+SELECT unnest(current_setting('my.periodes_rdd')::text[])
+ON CONFLICT (code_periode) DO NOTHING;
+
+
 
 
 
@@ -105,7 +123,7 @@ END $$;
 
 
 /* ************************************************************************** */
-/* fonctions */
+/* FONCTIONS */
 
 
 CREATE OR REPLACE function clean_string(value character varying)
@@ -429,26 +447,37 @@ CREATE TABLE schema_pilotage.ref_bourse_aide_financiere AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'BourseAideFinanciere'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_categorie_socioprofessionnelle AS
- SELECT categorie_socioprofessionnelle.code,
-    categorie_socioprofessionnelle.libelle_court,
-    categorie_socioprofessionnelle.libelle_long
-   FROM schema_ref.categorie_socioprofessionnelle;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn,
+    id_categorie_socioprofessionnelle_8
+   FROM schema_ref.categorie_socioprofessionnelle
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_commune AS
- SELECT commune.libelle_long,
-    commune.code_insee,
-    commune.code_postal
-   FROM schema_ref.commune;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_insee,
+    code_postal,
+    libelle_acheminement,
+    code_insee_ancien
+   FROM schema_ref.commune
+  ORDER BY code, date_debut_validite DESC;
 
 
 
@@ -462,31 +491,71 @@ CREATE TABLE schema_pilotage.ref_commune_insee AS
 
 
 CREATE TABLE schema_pilotage.ref_cursus_formation AS
- SELECT cursus_formation.code,
-    cursus_formation.libelle_court,
-    cursus_formation.libelle_long
-   FROM schema_ref.cursus_formation;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn
+   FROM schema_ref.cursus_formation
+  ORDER BY code, date_debut_validite DESC;
+
+
+
+
+CREATE TABLE schema_pilotage.ref_nature_diplome AS
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn
+   FROM schema_ref.nature_diplome
+  ORDER BY code, date_debut_validite DESC;
+
+
+
+
+CREATE TABLE schema_pilotage.ref_niveau_formation AS
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn
+   FROM schema_ref.niveau_formation
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_departement AS
- SELECT departement.code,
-    departement.code_academie,
-    departement.libelle_court,
-    departement.libelle_long,
-    departement.libelle_affichage    
-   FROM schema_ref.departement;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_academie,
+    code_region,
+    code_departement_immatriculation,
+    code_departement_insee2,
+    code_sise_departement
+   FROM schema_ref.departement
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_domaine_formation AS
- SELECT domaine_formation.code,
-    domaine_formation.libelle_court,
-    domaine_formation.libelle_long
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn
    FROM schema_ref.domaine_formation
-   WHERE code_bcn IS NOT NULL;
+   WHERE code_bcn IS NOT NULL
+  ORDER BY code, date_debut_validite DESC;
 
 
 
@@ -505,7 +574,6 @@ CREATE TABLE schema_pilotage.ref_mention_bac AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'MentionBac'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -530,30 +598,46 @@ CREATE TABLE schema_pilotage.ref_pays_nationalite AS
 
 
 CREATE TABLE schema_pilotage.ref_regime_inscription AS
- SELECT regime_inscription.code,
-    regime_inscription.libelle_court,
-    regime_inscription.libelle_long
-   FROM schema_ref.regime_inscription;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn,
+    code_sise_ins,
+    code_sise_rslt,
+    temoin_cvec,
+    financement_possible,
+    droit_a_bourse
+   FROM schema_ref.regime_inscription
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_serie_bac AS
- SELECT serie_bac.code,
-    serie_bac.libelle_court,
-    serie_bac.libelle_long,
-    serie_bac.id_type_bac
-   FROM schema_ref.serie_bac;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    code_bcn,
+    id_type_bac,
+    id_titre_acces
+   FROM schema_ref.serie_bac
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_type_bac AS
- SELECT type_bac.id,
-    type_bac.code,
-    type_bac.libelle_court,
-    type_bac.libelle_long
-   FROM schema_ref.type_bac;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage
+   FROM schema_ref.type_bac
+  ORDER BY code, date_debut_validite DESC;
 
 
 
@@ -573,7 +657,6 @@ CREATE TABLE schema_pilotage.ref_type_dernier_diplome_obtenu AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'TypeDernierDiplomeObtenu'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -607,17 +690,54 @@ CREATE TABLE schema_pilotage.ref_type_diplome AS
     RNF.libelle_long AS "niveau_formation_libelle_long"
     
    FROM schema_ref.type_diplome
-   LEFT JOIN schema_ref.cursus_formation RCF ON RCF.id = type_diplome.id_cursus_formation
-   LEFT JOIN schema_ref.nature_diplome RND ON RND.id = type_diplome.id_nature_diplome
-   LEFT JOIN schema_ref.niveau_formation RNF ON RNF.id = type_diplome.id_niveau_formation;
+   LEFT JOIN schema_pilotage.ref_cursus_formation RCF ON RCF.id = type_diplome.id_cursus_formation
+   LEFT JOIN schema_pilotage.ref_nature_diplome RND ON RND.id = type_diplome.id_nature_diplome
+   LEFT JOIN schema_pilotage.ref_niveau_formation RNF ON RNF.id = type_diplome.id_niveau_formation;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_etablissement_francais AS
- SELECT etablissement_francais.code,
-    etablissement_francais.libelle_affichage
-   FROM schema_ref.etablissement_francais;
+ SELECT DISTINCT ON (code) id,
+    code,
+    libelle_court,
+    libelle_long,
+    libelle_affichage,
+    denomination_principale,
+    id_type_uai,
+    nature_uai,
+    sigle_uai,
+    niveau_uai,
+    patronyme_uai,
+    numero_siren_siret_uai,
+    lieu_dit_uai,
+    adresse_uai,
+    boite_postale_uai,
+    code_postal_uai,
+    etat_sirad_uai,
+    localite_acheminement_uai,
+    numero_telecopieur_uai,
+    mel_uai,
+    pays_etranger_acheminement,
+    etat_etablissement,
+    ministere_tutelle,
+    tutelle_2,
+    secteur_public_prive,
+    categorie_juridique,
+    contrat_etablissement,
+    categorie_financiere,
+    situation_comptable,
+    localisation,
+    commune,
+    academie,
+    id_departement,
+    id_pays_nationalite,
+    hebergement_etablissement,
+    site_web,
+    coordonnee_x,
+    coordonnee_y
+   FROM schema_ref.etablissement_francais
+  ORDER BY code, date_debut_validite DESC;
 
 
 
@@ -637,7 +757,6 @@ CREATE TABLE schema_pilotage.ref_situation_militaire AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'SituationMilitaire'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -658,7 +777,6 @@ CREATE TABLE schema_pilotage.ref_situation_familiale AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'SituationFamiliale'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -679,7 +797,6 @@ CREATE TABLE schema_pilotage.ref_quotite_activite AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'QuotiteActivite'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -700,7 +817,6 @@ CREATE TABLE schema_pilotage.ref_specialites_bac AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'SpecialitesBacGeneral'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -721,7 +837,6 @@ CREATE TABLE schema_pilotage.ref_situation_annee_precedente AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'SituationAnneePrecedente'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -742,7 +857,6 @@ CREATE TABLE schema_pilotage.ref_cursus_parallele AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'CursusParallele'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -763,7 +877,6 @@ CREATE TABLE schema_pilotage.ref_programme_echange AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'ProgrammeEchange'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -784,7 +897,6 @@ CREATE TABLE schema_pilotage.ref_ecole_doctorale AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'EcoleDoctorale'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -805,7 +917,6 @@ CREATE TABLE schema_pilotage.ref_canal_de_communication AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'CanalCommunication'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -826,7 +937,6 @@ CREATE TABLE schema_pilotage.ref_regime_special_etudes AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'RegimeSpecialEtudes'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -848,7 +958,6 @@ CREATE TABLE schema_pilotage.ref_profil_exonerant AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'ProfilExonerant'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -869,7 +978,6 @@ CREATE TABLE schema_pilotage.ref_type_resultat AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'TypeResultat'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -890,7 +998,6 @@ CREATE TABLE schema_pilotage.ref_mention_honorifique AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'MentionHonorifique'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -911,7 +1018,6 @@ CREATE TABLE schema_pilotage.ref_notation_ects AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'NotationEcts'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -932,30 +1038,7 @@ CREATE TABLE schema_pilotage.ref_grade_point_average AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'GradePointAverage'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
-
-
-
-
-CREATE TABLE schema_pilotage.ref_niveau_formation AS
- SELECT id,
-    code,
-    code_bcn,
-    libelle_court,
-    libelle_long
-   FROM schema_ref.niveau_formation;
-
-
-
-
-CREATE TABLE schema_pilotage.ref_nature_diplome AS
- SELECT id,
-    code,
-    code_bcn,
-    libelle_court,
-    libelle_long
-   FROM schema_ref.nature_diplome;
 
 
 
@@ -975,7 +1058,6 @@ CREATE TABLE schema_pilotage.ref_niveau_diplome AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'NiveauDiplome'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -996,41 +1078,45 @@ CREATE TABLE schema_pilotage.ref_champ_formation AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'ChampsFormation'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_mention_diplome AS
- SELECT id,
+ SELECT DISTINCT ON (code) id,
     code,
     libelle_court,
-    libelle_long
-   FROM schema_ref.mention_diplome;
+    libelle_long,
+    libelle_affichage,
+    type_diplome
+   FROM schema_ref.mention_diplome
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_type_objet_formation AS
- SELECT id,
+ SELECT DISTINCT ON (code) id,
     code,
     libelle_court,
     libelle_long,
     libelle_affichage,
     categorie_objet
-   FROM schema_ref.type_objet_formation;
+   FROM schema_ref.type_objet_formation
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 CREATE TABLE schema_pilotage.ref_type_formation AS
- SELECT id,
+ SELECT DISTINCT ON (code) id,
     code,
     libelle_court,
     libelle_long,
     libelle_affichage
-   FROM schema_ref.type_formation;
+   FROM schema_ref.type_formation
+  ORDER BY code, date_debut_validite DESC;
 
 
 
@@ -1049,7 +1135,6 @@ CREATE TABLE schema_pilotage.ref_modalite_enseignement AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'ModaliteEnseignement'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -1070,7 +1155,6 @@ CREATE TABLE schema_pilotage.ref_type_heure AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'TypeHeure'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -1090,7 +1174,6 @@ CREATE TABLE schema_pilotage.ref_finalite_formation AS
    FROM (schema_ref.valeurs_nomenclature val
      JOIN schema_ref.nomenclature nom ON ((val.id_nomenclature = nom.id_nomenclature)))
   WHERE ((nom.code_nomenclature)::text = 'FinaliteFormation'::text)
-  
   ORDER BY code_metier, date_debut_validite DESC;
 
 
@@ -1098,19 +1181,20 @@ CREATE TABLE schema_pilotage.ref_finalite_formation AS
 
 
 CREATE TABLE schema_pilotage.ref_titre_acces AS
- SELECT id,
+ SELECT DISTINCT ON (code) id,
     code,
     libelle_court,
     libelle_long,
     libelle_affichage
-   FROM schema_ref.titre_acces;
+   FROM schema_ref.titre_acces
+  ORDER BY code, date_debut_validite DESC;
 
 
 
 
 
 CREATE TABLE schema_pilotage.ref_structure AS
- SELECT id,
+ SELECT DISTINCT ON (code) id,
     code,
     code_referentiel_externe,
     code_uai,
@@ -1129,7 +1213,8 @@ CREATE TABLE schema_pilotage.ref_structure AS
     id_parent,
     temoin_est_structure_mere
 
-   FROM schema_ref.structure;
+   FROM schema_ref.structure
+  ORDER BY code, date_debut_validite DESC;
 
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE TABLE schema_pilotage.ref_xxxxxxxxxxxxxxxxx'; END; $$;
 
@@ -1157,7 +1242,9 @@ SELECT
     date_debut_validite,
     date_fin_validite
     
-FROM schema_odf.espace;
+FROM schema_odf.espace
+WHERE code NOT IN (SELECT * FROM schema_pilotage.etab_periodes_rdd)
+ORDER BY type_espace, date_debut_validite;
 
 
 
@@ -1220,7 +1307,7 @@ SELECT
     NULL AS "date_contexte"-- TODO F.date_contexte
 
 FROM schema_odf.objet_maquette F
-LEFT JOIN schema_odf.espace ESP ON ESP.id = F.id_espace
+JOIN schema_pilotage.odf_espace ESP ON ESP.id = F.id_espace
 LEFT JOIN schema_odf.contexte CON ON CON.id_objet_maquette = F.id
 LEFT JOIN schema_pilotage.ref_type_diplome RTD ON RTD.code = F.code_type_diplome
 LEFT JOIN schema_pilotage.ref_niveau_diplome RNiD ON RNiD.code_metier = F.code_niveau_diplome
@@ -1347,7 +1434,7 @@ SELECT
     NULL AS "date_contexte"-- TODO OM.date_contexte
 
 FROM schema_odf.objet_maquette OM
-LEFT JOIN schema_odf.espace ESP ON ESP.id = OM.id_espace
+JOIN schema_pilotage.odf_espace ESP ON ESP.id = OM.id_espace
 LEFT JOIN schema_odf.contexte CON ON CON.id_objet_maquette = OM.id
 LEFT JOIN schema_pilotage.ref_type_objet_formation RTOF ON RTOF.code = OM.code_type_objet_formation
 LEFT JOIN schema_pilotage.ref_type_formation RTF ON RTF.code = OM.code_type_formation
@@ -1358,7 +1445,8 @@ LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_exter
 WHERE ESP.type_espace = 'P'
     AND CON.temoin_valide=TRUE
     
-    AND ESP.code NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
+    --AND ESP.code NOT IN (SELECT * FROM schema_pilotage.etab_periodes_rdd)
+    --AND ESP.code NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
     
 GROUP BY
     OM.id,
@@ -2926,7 +3014,11 @@ WHERE CAPP.id = DE.id_apprenant;
 /* diplômes */
 CREATE TABLE schema_pilotage.coc_diplome AS
 SELECT 
-	AD.id,	
+	AD.id,
+	CASE  
+		WHEN PAR.numero_edition IS NOT NULL THEN AD.id||'_'||P.code||'_'||DLOM.code_objet_maquette||'_'||PAR.numero_edition
+		ELSE AD.id||'_'||P.code||'_'||DLOM.code_objet_maquette
+	END AS "id_edition",
 	APP.id AS "id_apprenant",
 	APP.code_apprenant,
 	P.code AS "code_periode",
@@ -3006,7 +3098,7 @@ MP.libelle_court,MP.description,MP.denomination_diplome,MP.libelle_parcours_type
 ;
 
 
-ALTER TABLE schema_pilotage.coc_diplome ADD PRIMARY KEY (id, code_periode, code_objet_maquette);
+ALTER TABLE schema_pilotage.coc_diplome ADD PRIMARY KEY (id_edition);
 
 
 
