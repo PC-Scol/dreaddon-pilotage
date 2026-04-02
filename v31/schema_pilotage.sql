@@ -1374,6 +1374,9 @@ SELECT
         WHEN OM.code_type_objet_formation='GROUPEMENT' THEN 'GROUPEMENT'
 		ELSE RTOF.libelle_court
 	END AS "libelle_type",
+    OM.code_type_diplome,
+    RTD.libelle_long AS "libelle_type_diplome",
+    
     CASE  
 		WHEN RTOF.categorie_objet='OBJET_TEMPOREL_THEORIQUE' THEN 'OTT'
 		WHEN RTOF.categorie_objet='OBJET_PEDAGOGIQUE' THEN 'OP'
@@ -1431,6 +1434,7 @@ SELECT
     S.code_referentiel_externe AS "code_structure_externe",
     ESE.libelle_structure_externe_web AS "libelle_structure_externe",
     OM.id_formation_porteuse,
+    OM.structures_porteuse AS "code_structure_porteuse",
     NULL AS "date_contexte"-- TODO OM.date_contexte
 
 FROM schema_odf.objet_maquette OM
@@ -1438,6 +1442,7 @@ JOIN schema_pilotage.odf_espace ESP ON ESP.id = OM.id_espace
 LEFT JOIN schema_odf.contexte CON ON CON.id_objet_maquette = OM.id
 LEFT JOIN schema_pilotage.ref_type_objet_formation RTOF ON RTOF.code = OM.code_type_objet_formation
 LEFT JOIN schema_pilotage.ref_type_formation RTF ON RTF.code = OM.code_type_formation
+LEFT JOIN schema_pilotage.ref_type_diplome RTD ON RTD.code = OM.code_type_diplome
 --LEFT JOIN schema_mof.objet_formation_categorie FC ON FC.id = OFT.id_categorie
 LEFT JOIN schema_ref.structure S ON S.code = OM.code_structure_principale
 LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe
@@ -1461,6 +1466,8 @@ GROUP BY
 	OM.code_parcours_type_sise,
     "code_type",
     "libelle_type",
+    OM.code_type_diplome,
+    RTD.libelle_long,
     "code_categorie",
     "libelle_categorie",
     OM.niveau_diplome_sise,
@@ -1495,7 +1502,8 @@ GROUP BY
     OM.code_structure_principale,
     S.code_referentiel_externe,
     ESE.libelle_structure_externe_web,
-    OM.id_formation_porteuse/*,
+    OM.id_formation_porteuse,
+    OM.structures_porteuse/*,
     TODO OM.date_contexte*/
 
 ORDER BY ESP.code;
@@ -1534,6 +1542,8 @@ SELECT
 	OM.code_parcours_type_sise AS "code_parcours_type_sise_objet_formation",
 	OM.code_type AS "code_type_objet_formation",
 	OM.libelle_type AS "libelle_type_objet_formation",
+	OM.code_type_diplome AS "code_type_diplome_objet_formation",
+	OM.libelle_type_diplome AS "libelle_type_diplome_objet_formation",
 	OM.code_categorie AS "code_categorie_objet_formation",
 	OM.niveau_diplome_sise AS "niveau_sise_objet_formation",
 	OM.libelle_categorie AS "libelle_categorie_objet_formation",
@@ -1577,6 +1587,7 @@ SELECT
     ESE1.libelle_structure_externe_web AS "libelle_structure_externe_objet_formation",
 	
     OM.id_formation_porteuse,
+    OM.code_structure_porteuse,
 	F.id AS "id_formation",
 	F.code AS "code_formation",
 	F.libelle_court AS "libelle_court_formation",
@@ -1652,6 +1663,8 @@ GROUP BY
 	OM.code_parcours_type_sise,
     OM.code_type,
     OM.libelle_type,
+	OM.code_type_diplome,
+	OM.libelle_type_diplome,
     OM.code_categorie,
     OM.libelle_categorie,
     OM.nb_inscriptions_autorisees,
@@ -1686,6 +1699,7 @@ GROUP BY
     S1.code_referentiel_externe,
     ESE1.libelle_structure_externe_web,
     OM.id_formation_porteuse,
+    OM.code_structure_porteuse,
     F.id,
     F.code,
     F.libelle_court,
@@ -2507,6 +2521,7 @@ CREATE TABLE schema_pilotage.ins_inscription AS
     inscription.contexte_inscription,
     NULL AS "numero_candidat", -- disparu en v28
     inscription.date_creation AS "date_inscription",
+    inscription.date_validation_inscription AS "date_validation_inscription",
     inscription.statut_inscription,
     inscription.statut_paiement,
     /*inscription.statut_pieces*/ -- TODO v28
