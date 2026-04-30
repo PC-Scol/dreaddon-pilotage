@@ -1249,12 +1249,29 @@ CREATE TABLE schema_pilotage.ref_diplome_sise AS
 /* vues concernant l'offre de formation */
 
    
-   
+
+/* annee universitaire */
+CREATE TABLE schema_pilotage.odf_annee_universitaire AS
+SELECT 
+    AU.id,
+    AU.annee,
+    AU.libelle,
+	CASE  
+		WHEN AUR.id IS NOT NULL THEN TRUE
+		ELSE FALSE
+	END AS "annee_de_reference"
+    
+FROM schema_odf.annee_universitaire AU
+LEFT JOIN schema_odf.annee_universitaire_reference AUR ON AUR.annee = AU.annee
+ORDER BY AU.annee;
+
+  
+  
    
 /* espaces / periodes */
 CREATE TABLE schema_pilotage.odf_espace AS
 SELECT 
-    id,
+    espace.id,
     type_espace,
     code_structure,
     code,
@@ -1262,12 +1279,14 @@ SELECT
     libelle_affichage,
     libelle_long,
     version,
+    OAU.id AS "id_annee_universitaire",
     annee_universitaire,
     temoin_active,
     date_debut_validite,
     date_fin_validite
     
 FROM schema_odf.espace
+LEFT JOIN schema_pilotage.odf_annee_universitaire OAU ON OAU.annee = annee_universitaire
 WHERE code NOT IN (SELECT * FROM schema_pilotage.etab_periodes_rdd)
 ORDER BY type_espace, date_debut_validite;
 
@@ -1281,6 +1300,7 @@ SELECT
     F.id,
 	ESP.code AS "code_periode",
 	ESP.libelle_long AS "libelle_periode",
+	CON.temoin_valide,
     F.code,
     clean_string(F.libelle_court) AS "libelle_court",
     clean_string(F.libelle_long) AS "libelle_long",
@@ -1349,7 +1369,7 @@ LEFT JOIN schema_pai.tarification TAR ON TAR.id = PAIF.id_tarification
 
 WHERE F.type_objet_maquette = 'F'
 	AND ESP.type_espace = 'P'
-    AND CON.temoin_valide=TRUE
+    --AND CON.temoin_valide=TRUE
 	
 	--AND F.code='A3CCA-351-V1'
 	--AND ESP.code='PER-2025'
@@ -1473,7 +1493,7 @@ LEFT JOIN schema_ref.structure S ON S.code = OM.code_structure_principale
 LEFT JOIN schema_pilotage.etab_structure_externe ESE ON ESE.code_structure_externe = S.code_referentiel_externe
 
 WHERE ESP.type_espace = 'P'
-    AND CON.temoin_valide=TRUE
+    --AND CON.temoin_valide=TRUE
     
     --AND ESP.code NOT IN (SELECT * FROM schema_pilotage.etab_periodes_rdd)
     --AND ESP.code NOT IN ('PER-2014','PER-2015','PER-2016','PER-2017','PER-2018','PER-2019','PER-2020','PER-2021')
@@ -1547,6 +1567,7 @@ SELECT
 	NULL AS id_parent,
 	OM.code_periode,
 	OM.libelle_periode,
+	CON.temoin_valide,
     CON.chemin AS "chemin_uuid",
     NULL AS "chemin",
     NULL AS "chemin_parent",
@@ -1675,6 +1696,7 @@ GROUP BY
     CON.id,
     OM.code_periode,
     OM.libelle_periode,
+	CON.temoin_valide,
     CON.chemin,
     OM.id,
     OM.code,
