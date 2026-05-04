@@ -1891,6 +1891,41 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 
 
 
+/* complète l'identifiant de la formation porteuse avec celui du parent le plus proche */
+DO $$
+DECLARE
+    r RECORD;
+    v_prefix uuid[];
+    v_idx int;
+    v_id_formation uuid;
+BEGIN
+    FOR r IN (SELECT id, chemin_uuid FROM schema_pilotage.odf_objet_formation_chemin WHERE id_formation_porteuse IS NULL) LOOP
+
+        v_id_formation := NULL;
+
+        -- remonter du plus proche au plus haut
+        FOR v_idx IN REVERSE array_length(r.chemin_uuid, 1)..1 LOOP
+
+            v_prefix := r.chemin_uuid[1:v_idx];
+
+            SELECT t.id_formation_porteuse INTO v_id_formation FROM schema_pilotage.odf_objet_formation_chemin t WHERE t.chemin_uuid = v_prefix AND t.id_formation_porteuse IS NOT NULL LIMIT 1;
+
+            IF v_id_formation IS NOT NULL THEN
+                EXIT;
+            END IF;
+
+        END LOOP;
+
+        -- mise à jour
+        IF v_id_formation IS NOT NULL THEN
+            UPDATE schema_pilotage.odf_objet_formation_chemin SET id_formation_porteuse = v_id_formation WHERE id = r.id;
+        END IF;
+
+    END LOOP;
+END $$;
+
+
+
 
 
 /* formats d'enseignement */
@@ -1939,6 +1974,52 @@ GROUP BY FE.id,
     FE.modalite,
     RME.libelle_court,
     RME.libelle_long;
+
+
+
+    
+    
+    
+    
+    
+    
+   
+
+/* liste des diplomes */
+CREATE TABLE schema_pilotage.odf_diplome AS
+SELECT 
+    D.id,
+	ESP.code AS "code_periode",
+	ESP.libelle_long AS "libelle_periode",
+	D.temoin_actif,
+	D.code,
+	D.nom_diplome,
+	clean_string(D.intitule) AS "intitule",
+	clean_string(D.libelle_court) AS "libelle_court",
+	clean_string(D.libelle_long) AS "libelle_long",
+	clean_string(D.libelle_affichage) AS "libelle_affichage",
+	D.version,
+	D.code_finalite_diplome AS "finalite_diplome_code",
+	FIN.libelle_court AS "finalite_diplome_libelle_court",
+	FIN.libelle_long AS "finalite_diplome_libelle_long",
+	D.temoin_diplome_intermediaire,
+	D.date_creation_diplome,
+	D.code_structure,
+	D.date_arrete,
+	D.date_debut_validite,
+	D.date_fin_validite,
+	D.grade,
+	D.co_accredites,
+	D.codes_objets_maquettes,
+	D.code_etablissement_delivrant_diplome,
+	D.niveau_diplomant
+
+FROM schema_odf.diplome D
+JOIN schema_pilotage.odf_espace ESP ON ESP.id = D.id_espace
+LEFT JOIN schema_pilotage.ref_finalite_formation FIN ON FIN.code_metier = D.code_finalite_diplome
+
+ORDER BY ESP.code, D.code;
+
 
 
 
