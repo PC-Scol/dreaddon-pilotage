@@ -1928,6 +1928,43 @@ END $$;
 
 
 
+/* complète la structure porteuse avec celle du parent le plus proche */
+DO $$
+DECLARE
+    r RECORD;
+    v_prefix uuid[];
+    v_idx int;
+    v_code_structure varchar;
+BEGIN
+    FOR r IN (SELECT id, chemin_uuid FROM schema_pilotage.odf_objet_formation_chemin WHERE code_structure_porteuse IS NULL) LOOP
+
+        v_code_structure := NULL;
+
+        -- remonter du plus proche au plus haut
+        FOR v_idx IN REVERSE array_length(r.chemin_uuid, 1)..1 LOOP
+
+            v_prefix := r.chemin_uuid[1:v_idx];
+
+            SELECT t.code_structure_porteuse INTO v_code_structure FROM schema_pilotage.odf_objet_formation_chemin t WHERE t.chemin_uuid = v_prefix AND t.code_structure_porteuse IS NOT NULL LIMIT 1;
+
+            IF v_code_structure IS NOT NULL THEN
+                EXIT;
+            END IF;
+
+        END LOOP;
+
+        -- mise à jour
+        IF v_code_structure IS NOT NULL THEN
+            UPDATE schema_pilotage.odf_objet_formation_chemin SET code_structure_porteuse = v_code_structure WHERE id = r.id;
+        END IF;
+
+    END LOOP;
+END $$;
+
+
+
+
+
 /* formats d'enseignement */
 CREATE TABLE schema_pilotage.odf_format_enseignement AS
 SELECT
