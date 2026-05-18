@@ -1805,6 +1805,7 @@ CREATE UNIQUE INDEX odf_objet_formation_chemin_id_idx ON schema_pilotage.odf_obj
 CREATE INDEX odf_objet_formation_chemin_chemin_uuid_idx ON schema_pilotage.odf_objet_formation_chemin USING GIN (chemin_uuid);
 CREATE INDEX odf_objet_formation_chemin_chemin_idx ON schema_pilotage.odf_objet_formation_chemin (chemin);
 CREATE INDEX odf_objet_formation_chemin_chemin_parent_idx ON schema_pilotage.odf_objet_formation_chemin (chemin_parent);
+CREATE INDEX odf_objet_formation_chemin_code_structure_porteuse_idx ON schema_pilotage.odf_objet_formation_chemin (code_structure_porteuse);
 
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE INDEX xxx ON schema_pilotage.odf_objet_formation_chemin'; END; $$;
 
@@ -1892,7 +1893,7 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 
 
 /* complète l'identifiant de la formation porteuse avec celui du parent le plus proche */
-DO $$
+/*DO $$
 DECLARE
     r RECORD;
     v_prefix uuid[];
@@ -1922,14 +1923,14 @@ BEGIN
         END IF;
 
     END LOOP;
-END $$;
+END $$;*/
 
 
 
 
 
 /* complète la structure porteuse avec celle du parent le plus proche */
-DO $$
+/*DO $$
 DECLARE
     r RECORD;
     v_prefix uuid[];
@@ -1959,7 +1960,7 @@ BEGIN
         END IF;
 
     END LOOP;
-END $$;
+END $$;*/
 
 
 
