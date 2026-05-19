@@ -1633,7 +1633,9 @@ SELECT
     ESE1.libelle_structure_externe_web AS "libelle_structure_externe_objet_formation",
 	
     OM.id_formation_porteuse,
+    OM.id_formation_porteuse AS "id_formation_porteuse_calcule",
     OM.code_structure_porteuse,
+    OM.code_structure_porteuse AS "code_structure_porteuse_calcule",
 	F.id AS "id_formation",
 	F.code AS "code_formation",
 	F.libelle_court AS "libelle_court_formation",
@@ -1893,74 +1895,36 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 
 
 /* complète l'identifiant de la formation porteuse avec celui du parent le plus proche */
-/*DO $$
-DECLARE
+DO $$ DECLARE
     r RECORD;
-    v_prefix uuid[];
-    v_idx int;
-    v_id_formation uuid;
 BEGIN
-    FOR r IN (SELECT id, chemin_uuid FROM schema_pilotage.odf_objet_formation_chemin WHERE id_formation_porteuse IS NULL) LOOP
-
-        v_id_formation := NULL;
-
-        -- remonter du plus proche au plus haut
-        FOR v_idx IN REVERSE array_length(r.chemin_uuid, 1)..1 LOOP
-
-            v_prefix := r.chemin_uuid[1:v_idx];
-
-            SELECT t.id_formation_porteuse INTO v_id_formation FROM schema_pilotage.odf_objet_formation_chemin t WHERE t.chemin_uuid = v_prefix AND t.id_formation_porteuse IS NOT NULL LIMIT 1;
-
-            IF v_id_formation IS NOT NULL THEN
-                EXIT;
-            END IF;
-
+    FOR r IN (SELECT *
+                              FROM  schema_pilotage.odf_objet_formation_chemin
+                              WHERE id_formation_porteuse IS NOT NULL
+                              ORDER BY code_periode, chemin) LOOP
+        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_formation_porteuse_calcule = r.id_formation_porteuse WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND code_periode = r.code_periode;
+		--RAISE NOTICE 'id_objet_formation = %, chemin = %', r.id_objet_formation, r.chemin;
         END LOOP;
+END $$;
 
-        -- mise à jour
-        IF v_id_formation IS NOT NULL THEN
-            UPDATE schema_pilotage.odf_objet_formation_chemin SET id_formation_porteuse = v_id_formation WHERE id = r.id;
-        END IF;
 
-    END LOOP;
-END $$;*/
 
 
 
 
 
 /* complète la structure porteuse avec celle du parent le plus proche */
-/*DO $$
-DECLARE
+DO $$ DECLARE
     r RECORD;
-    v_prefix uuid[];
-    v_idx int;
-    v_code_structure varchar;
 BEGIN
-    FOR r IN (SELECT id, chemin_uuid FROM schema_pilotage.odf_objet_formation_chemin WHERE code_structure_porteuse IS NULL) LOOP
-
-        v_code_structure := NULL;
-
-        -- remonter du plus proche au plus haut
-        FOR v_idx IN REVERSE array_length(r.chemin_uuid, 1)..1 LOOP
-
-            v_prefix := r.chemin_uuid[1:v_idx];
-
-            SELECT t.code_structure_porteuse INTO v_code_structure FROM schema_pilotage.odf_objet_formation_chemin t WHERE t.chemin_uuid = v_prefix AND t.code_structure_porteuse IS NOT NULL LIMIT 1;
-
-            IF v_code_structure IS NOT NULL THEN
-                EXIT;
-            END IF;
-
+    FOR r IN (SELECT *
+                              FROM  schema_pilotage.odf_objet_formation_chemin
+                              WHERE code_structure_porteuse IS NOT NULL
+                              ORDER BY code_periode, chemin) LOOP
+        UPDATE schema_pilotage.odf_objet_formation_chemin SET code_structure_porteuse_calcule = r.code_structure_porteuse WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND code_periode = r.code_periode;
+		--RAISE NOTICE 'id_objet_formation = %, chemin = %', r.id_objet_formation, r.chemin;
         END LOOP;
-
-        -- mise à jour
-        IF v_code_structure IS NOT NULL THEN
-            UPDATE schema_pilotage.odf_objet_formation_chemin SET code_structure_porteuse = v_code_structure WHERE id = r.id;
-        END IF;
-
-    END LOOP;
-END $$;*/
+END $$;
 
 
 
