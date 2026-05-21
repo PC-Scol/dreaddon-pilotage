@@ -1803,11 +1803,18 @@ ALTER TABLE schema_pilotage.odf_objet_formation_chemin ALTER COLUMN id_ancetre_o
 
 /* création de plusieurs index */
 CREATE UNIQUE INDEX odf_objet_formation_chemin_id_idx ON schema_pilotage.odf_objet_formation_chemin (id);
---CREATE UNIQUE INDEX odf_objet_formation_chemin_id_objet_formation_idx ON schema_pilotage.odf_objet_formation_chemin (id_objet_formation);
+CREATE INDEX odf_objet_formation_chemin_id_objet_formation_idx ON schema_pilotage.odf_objet_formation_chemin (id_objet_formation);
 CREATE INDEX odf_objet_formation_chemin_chemin_uuid_idx ON schema_pilotage.odf_objet_formation_chemin USING GIN (chemin_uuid);
 CREATE INDEX odf_objet_formation_chemin_chemin_idx ON schema_pilotage.odf_objet_formation_chemin (chemin);
 CREATE INDEX odf_objet_formation_chemin_chemin_parent_idx ON schema_pilotage.odf_objet_formation_chemin (chemin_parent);
+
+CREATE INDEX odf_objet_formation_chemin_id_formation_porteuse_idx ON schema_pilotage.odf_objet_formation_chemin (id_formation_porteuse);
+CREATE INDEX odf_objet_formation_chemin_id_formation_porteuse_calcule_idx ON schema_pilotage.odf_objet_formation_chemin (id_formation_porteuse_calcule);
 CREATE INDEX odf_objet_formation_chemin_code_structure_porteuse_idx ON schema_pilotage.odf_objet_formation_chemin (code_structure_porteuse);
+CREATE INDEX odf_objet_formation_chemin_code_structure_porteuse_calcule_idx ON schema_pilotage.odf_objet_formation_chemin (code_structure_porteuse_calcule);
+
+CREATE INDEX odf_objet_formation_chemin_code_periode_idx ON schema_pilotage.odf_objet_formation_chemin(code_periode);
+CREATE INDEX odf_objet_formation_chemin_code_periode_chemin_code_structure_porteuse_idx ON schema_pilotage.odf_objet_formation_chemin(code_periode, chemin) WHERE code_structure_porteuse IS NOT NULL;
 
 --DO $$ BEGIN RAISE NOTICE 'DONE : CREATE INDEX xxx ON schema_pilotage.odf_objet_formation_chemin'; END; $$;
 
@@ -1867,7 +1874,7 @@ WHERE OFC_FILS.id_objet_formation = ENF.id_objet_maquette;
 DO $$ DECLARE
     r RECORD;
 BEGIN
-    FOR r IN (SELECT *
+    FOR r IN (SELECT id, chemin, id_objet_formation
                               FROM  schema_pilotage.odf_objet_formation_chemin
                               WHERE objet_formation_ouvert_aux_ia = TRUE
                               --AND code_type_diplome='TYD020'
@@ -1894,37 +1901,108 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 
 
 
-/* complète l'identifiant de la formation porteuse avec celui du parent le plus proche */
-DO $$ DECLARE
+
+
+/* complète l'identifiant de la formation porteuse et la structure porteuse avec celle du parent le plus proche */
+/*DO $$ DECLARE
+    r1 RECORD;
     r RECORD;
 BEGIN
-    FOR r IN (SELECT *
-                              FROM  schema_pilotage.odf_objet_formation_chemin
-                              WHERE id_formation_porteuse IS NOT NULL
-                              ORDER BY code_periode, chemin) LOOP
-        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_formation_porteuse_calcule = r.id_formation_porteuse WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND code_periode = r.code_periode;
+    FOR r1 IN (SELECT code
+                              FROM  schema_pilotage.odf_espace
+                              ORDER BY code) LOOP
+
+--IF r1.code = '2025' THEN
+	
+	-- supprime tables temporaires
+	DROP TABLE IF EXISTS schema_pilotage.temp_odf_objet_formation_chemin_calcule_from;
+	DROP TABLE IF EXISTS schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse;
+	DROP TABLE IF EXISTS schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse;
+
+	-- crée table avec les données en entrée sur la période en cours
+	CREATE TABLE schema_pilotage.temp_odf_objet_formation_chemin_calcule_from AS
+	SELECT 
+	    id, id_objet_formation, chemin, chemin_uuid, id_formation_porteuse, id_formation_porteuse_calcule, code_structure_porteuse, code_structure_porteuse_calcule, code_periode
+	FROM schema_pilotage.odf_objet_formation_chemin
+	WHERE code_periode = r1.code;
+
+	-- créé table dans laquelle écrire où id_formation_porteuse est NULL
+	CREATE TABLE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse AS
+	SELECT 
+	    *
+	FROM schema_pilotage.temp_odf_objet_formation_chemin_calcule_from
+	WHERE id_formation_porteuse IS NULL;
+
+	-- créé table dans laquelle écrire où code_structure_porteuse est NULL
+	CREATE TABLE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse AS
+	SELECT 
+	    *
+	FROM schema_pilotage.temp_odf_objet_formation_chemin_calcule_from
+	WHERE code_structure_porteuse IS NULL;
+
+
+	-- créé index pour accélérer la recherche
+	CREATE INDEX temp_odf_objet_formation_chemin_calcule_from_chemin_uuid_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_from USING GIN (chemin_uuid);
+	CREATE INDEX temp_odf_objet_formation_chemin_calcule_dest1_chemin_uuid_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse USING GIN (chemin_uuid);
+	CREATE INDEX temp_odf_objet_formation_chemin_calcule_dest2_chemin_uuid_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse USING GIN (chemin_uuid);
+
+	CREATE INDEX temp_odf_objet_formation_chemin_calcule_dest1_id_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse(id);
+	CREATE INDEX temp_odf_objet_formation_chemin_calcule_dest2_id_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse(id);
+	
+	CREATE INDEX odf_objet_formation_chemin_calcule_from_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_from (chemin text_pattern_ops);
+	CREATE INDEX odf_objet_formation_chemin_calcule_dest1_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse (chemin text_pattern_ops);
+	CREATE INDEX odf_objet_formation_chemin_calcule_dest2_idx ON schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse (chemin text_pattern_ops);
+	
+	
+	-- complète l'identifiant de la formation porteuse avec celui du parent le plus proche 
+	FOR r IN (SELECT id_objet_formation, id_formation_porteuse, chemin, chemin_uuid
+			FROM  schema_pilotage.temp_odf_objet_formation_chemin_calcule_from
+			WHERE id_formation_porteuse IS NOT NULL
+			ORDER BY chemin) LOOP
+		--UPDATE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse SET id_formation_porteuse_calcule = r.id_formation_porteuse WHERE chemin_uuid[1:array_length(r.chemin_uuid, 1)] = r.chemin_uuid;
+		--UPDATE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse SET id_formation_porteuse_calcule = r.id_formation_porteuse WHERE chemin_uuid @> ARRAY[r.id_objet_formation];
+		UPDATE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse SET id_formation_porteuse_calcule = r.id_formation_porteuse WHERE chemin LIKE r.chemin || '>%';
 		--RAISE NOTICE 'id_objet_formation = %, chemin = %', r.id_objet_formation, r.chemin;
+	END LOOP;
+	
+	
+	
+	-- recopie les id_formation_porteuse depuis temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse vers odf_objet_formation_chemin
+	UPDATE schema_pilotage.odf_objet_formation_chemin t
+		SET id_formation_porteuse_calcule = s.id_formation_porteuse_calcule
+		FROM schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_id_formation_porteuse s
+		WHERE t.id = s.id
+		AND t.id_formation_porteuse_calcule IS DISTINCT FROM s.id_formation_porteuse_calcule;
+	
+	
+	
+
+	-- complète la structure porteuse avec celle du parent le plus proche
+	FOR r IN (SELECT id_objet_formation, code_structure_porteuse, chemin, chemin_uuid
+			FROM  schema_pilotage.temp_odf_objet_formation_chemin_calcule_from
+			WHERE code_structure_porteuse IS NOT NULL
+			ORDER BY chemin) LOOP
+		--UPDATE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse SET code_structure_porteuse_calcule = r.code_structure_porteuse WHERE chemin_uuid[1:array_length(r.chemin_uuid, 1)] = r.chemin_uuid;
+		--UPDATE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse SET code_structure_porteuse_calcule = r.code_structure_porteuse WHERE chemin_uuid @> ARRAY[r.id_objet_formation];
+		UPDATE schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse SET code_structure_porteuse_calcule = r.code_structure_porteuse WHERE chemin LIKE r.chemin || '>%';
+		--RAISE NOTICE 'id_objet_formation = %, chemin = %', r.id_objet_formation, r.chemin;
+	END LOOP;
+	
+	
+	-- recopie les code_structure_porteuse_calcule depuis temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse vers odf_objet_formation_chemin
+	UPDATE schema_pilotage.odf_objet_formation_chemin t
+		SET code_structure_porteuse_calcule = s.code_structure_porteuse_calcule
+		FROM schema_pilotage.temp_odf_objet_formation_chemin_calcule_dest_code_structure_porteuse s
+		WHERE t.id = s.id
+		AND t.code_structure_porteuse_calcule IS DISTINCT FROM s.code_structure_porteuse_calcule;
+	
+--END IF;
+	
         END LOOP;
 END $$;
+*/
 
 
-
-
-
-
-
-/* complète la structure porteuse avec celle du parent le plus proche */
-DO $$ DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (SELECT *
-                              FROM  schema_pilotage.odf_objet_formation_chemin
-                              WHERE code_structure_porteuse IS NOT NULL
-                              ORDER BY code_periode, chemin) LOOP
-        UPDATE schema_pilotage.odf_objet_formation_chemin SET code_structure_porteuse_calcule = r.code_structure_porteuse WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND code_periode = r.code_periode;
-		--RAISE NOTICE 'id_objet_formation = %, chemin = %', r.id_objet_formation, r.chemin;
-        END LOOP;
-END $$;
 
 
 
