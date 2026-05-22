@@ -1904,7 +1904,7 @@ WHERE  objet_formation_ouvert_aux_ia = TRUE AND niveau IS NULL
 
 
 /* complète l'identifiant de la formation porteuse et la structure porteuse avec celle du parent le plus proche */
-/*DO $$ DECLARE
+DO $$ DECLARE
     r1 RECORD;
     r RECORD;
 BEGIN
@@ -2000,7 +2000,7 @@ BEGIN
 	
         END LOOP;
 END $$;
-*/
+
 
 
 
