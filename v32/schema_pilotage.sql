@@ -1862,11 +1862,17 @@ UPDATE schema_pilotage.odf_objet_formation_chemin SET chemin_parent = left(chemi
 
 
 /* complète le parent - note : passe par une boucle FOR car l'UPDATE en masse bloque tout le script ? */
-UPDATE schema_pilotage.odf_objet_formation_chemin OFC_FILS
+/*UPDATE schema_pilotage.odf_objet_formation_chemin OFC_FILS
 SET id_parent = ENF.id_objet_maquette_parent
 FROM schema_odf.enfant ENF
 WHERE OFC_FILS.id_objet_formation = ENF.id_objet_maquette;
+--DO $$ BEGIN RAISE NOTICE 'DONE : UPDATE schema_pilotage.odf_objet_formation_chemin SET id_parent'; END; $$;*/
+UPDATE schema_pilotage.odf_objet_formation_chemin OFC_FILS
+SET id_parent = CONT.chemin_pere[array_length(CONT.chemin_pere, 1)]
+FROM schema_odf.contexte CONT
+WHERE OFC_FILS.id = CONT.id;
 --DO $$ BEGIN RAISE NOTICE 'DONE : UPDATE schema_pilotage.odf_objet_formation_chemin SET id_parent'; END; $$;
+
 
 
 /* complète l'ancêtre qui porte l'IA */
@@ -1874,7 +1880,7 @@ WHERE OFC_FILS.id_objet_formation = ENF.id_objet_maquette;
 DO $$ DECLARE
     r RECORD;
 BEGIN
-    FOR r IN (SELECT id, chemin, id_objet_formation
+    FOR r IN (SELECT id, chemin, id_objet_formation, code_periode
                               FROM  schema_pilotage.odf_objet_formation_chemin
                               WHERE objet_formation_ouvert_aux_ia = TRUE
                               --AND code_type_diplome='TYD020'
@@ -1882,7 +1888,8 @@ BEGIN
                               ORDER BY code_periode, code_formation, chemin DESC) LOOP
         --UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE objet_formation_ouvert_aux_ia = FALSE AND chemin LIKE r.chemin||'>%' AND code_periode = r.code_periode AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
         --UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE r.id_objet_formation=ANY(chemin_uuid) AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
-        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        --UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE chemin_uuid @> ARRAY[r.id_objet_formation] AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
+        UPDATE schema_pilotage.odf_objet_formation_chemin SET id_ancetre_ouvert_aux_ia = r.id, chemin_ancetre_ouvert_aux_ia = r.chemin WHERE chemin LIKE r.chemin || '>%' AND code_periode = r.code_periode AND objet_formation_ouvert_aux_ia = FALSE AND id_ancetre_ouvert_aux_ia IS NULL AND chemin_ancetre_ouvert_aux_ia IS NULL;
     END LOOP;
 END $$;
 
@@ -2452,7 +2459,7 @@ FROM schema_piece.piece_demandee
 
 LEFT JOIN schema_pilotage.ins_demande_piece ON ins_demande_piece.id = piece_demandee.id_demande_piece
 LEFT JOIN schema_pilotage.odf_objet_formation_chemin ON odf_objet_formation_chemin.chemin = piece_demandee.code_chemin AND odf_objet_formation_chemin.code_periode = ins_demande_piece.code_periode
-LEFT JOIN schema_pilotage.idt_apprenant ON idt_apprenant.code_apprenant = piece_demandee.id_apprenant::varchar
+LEFT JOIN schema_pilotage.idt_apprenant ON idt_apprenant.id = piece_demandee.id_apprenant::varchar
 LEFT JOIN schema_ins.inscription ON odf_objet_formation_chemin.id = inscription.id_odf_chemin AND idt_apprenant.id = inscription.id_apprenant::varchar
 
 ORDER BY odf_objet_formation_chemin.code_periode, code_chemin, id;
@@ -2465,51 +2472,6 @@ ORDER BY odf_objet_formation_chemin.code_periode, code_chemin, id;
 
 
 
-
-/* TODO v28 pas bon : ticket en cours, je ne récupère pas les pièces de Magalie */
-CREATE TABLE schema_pilotage.ins_depot_piece AS
- SELECT 
-	depot_piece.id,
-	depot_piece.version,
-	
-	ins_piece_demandee.id_apprenant,
-	ins_piece_demandee.code_apprenant,
-	
-	ins_piece_demandee.id_inscription,
-	depot_piece.date_depot,
-	statut_piece.statut,
-	statut_piece.motif_rejet,
-	
-	ins_piece_demandee.id_objet_formation_chemin,
-	ins_piece_demandee.code_chemin,
-	
-	
-	ins_demande_piece.code_metier,
-	ins_demande_piece.code_periode,
-	ins_demande_piece.libelle_affichage,
-	ins_demande_piece.description,
-	ins_demande_piece.temoin_televersement,
-	ins_demande_piece.temoin_obligatoire,
-	ins_demande_piece.temoin_validation_gestionnaire,
-	ins_demande_piece.date_debut_validite,
-	ins_demande_piece.date_fin_validite,
-	ins_demande_piece.priorite_affichage,
-	ins_demande_piece.temoin_photo
-	
-FROM schema_piece.depot_piece
-
-
-JOIN schema_piece.statut_pour_demande ON statut_pour_demande.id_depot_piece = depot_piece.id
-JOIN schema_piece.statut_piece ON statut_piece.id = statut_pour_demande.id_statut_piece
-JOIN schema_pilotage.ins_piece_demandee ON ins_piece_demandee.id = statut_pour_demande.id_piece_demandee
-JOIN schema_pilotage.ins_demande_piece ON ins_demande_piece.id = ins_piece_demandee.id_demande_piece
-
-
-
-ORDER BY code_periode, code_metier;
-
-
-   
 
 
 
@@ -2861,6 +2823,58 @@ CREATE TABLE schema_pilotage.ins_inscription_annulee AS
 
 
 
+
+
+
+
+/* TODO v28 pas bon : ticket en cours, je ne récupère pas les pièces de Magalie */
+CREATE TABLE schema_pilotage.ins_depot_piece AS
+ SELECT 
+	depot_piece.id,
+	depot_piece.version,
+	
+	ins_piece_demandee.id_apprenant,
+	idt_apprenant.code_apprenant,
+	
+	ins_inscription.id AS "id_inscription",
+	depot_piece.date_depot,
+	statut_piece.statut,
+	statut_piece.motif_rejet,
+	
+	ins_piece_demandee.id_objet_formation_chemin,
+	ins_piece_demandee.code_chemin,
+	
+	
+	ins_demande_piece.code_metier,
+	ins_demande_piece.code_periode,
+	ins_demande_piece.libelle_affichage,
+	ins_demande_piece.description,
+	ins_demande_piece.temoin_televersement,
+	ins_demande_piece.temoin_obligatoire,
+	ins_demande_piece.temoin_validation_gestionnaire,
+	ins_demande_piece.date_debut_validite,
+	ins_demande_piece.date_fin_validite,
+	ins_demande_piece.priorite_affichage,
+	ins_demande_piece.temoin_photo
+	
+FROM schema_piece.depot_piece
+
+
+JOIN schema_piece.statut_pour_demande ON statut_pour_demande.id_depot_piece = depot_piece.id
+JOIN schema_piece.statut_piece ON statut_piece.id = statut_pour_demande.id_statut_piece
+JOIN schema_pilotage.ins_piece_demandee ON ins_piece_demandee.id = statut_pour_demande.id_piece_demandee
+JOIN schema_pilotage.ins_demande_piece ON ins_demande_piece.id = ins_piece_demandee.id_demande_piece
+
+JOIN schema_pilotage.odf_objet_formation_chemin ON odf_objet_formation_chemin.chemin = ins_piece_demandee.code_chemin AND odf_objet_formation_chemin.code_periode = ins_demande_piece.code_periode
+JOIN schema_pilotage.ins_inscription ON odf_objet_formation_chemin.id = ins_inscription.id_objet_formation_chemin AND ins_piece_demandee.id_apprenant::varchar = ins_inscription.id_apprenant
+JOIN schema_pilotage.idt_apprenant ON idt_apprenant.id = ins_inscription.id_apprenant
+
+ORDER BY code_periode, code_metier;
+
+
+
+
+
 /* admissions */
 CREATE TABLE schema_pilotage.ins_admission AS
  SELECT admission.id::varchar(255),
@@ -2945,6 +2959,43 @@ ALTER TABLE schema_pilotage.ins_inscription_en_cours_pieces ADD PRIMARY KEY (id,
 CREATE INDEX ins_inscription_en_cours_pieces_id_inscription_idx ON schema_pilotage.ins_inscription_en_cours_pieces (id_inscription);  
    
    
+
+
+
+CREATE TABLE schema_pilotage.ins_inscription_pieces AS
+    SELECT
+        DP.id,
+        DP.id_inscription::varchar,
+        DP.code_metier AS "code",
+        RDP.libelle_affichage AS "libelle",
+        DP.temoin_obligatoire AS "obligatoire",
+        DP.temoin_photo,
+        --DP.temoin_primo,
+        --DP.temoin_reins,
+        DP.statut AS "statut_piece"
+    FROM schema_pilotage.ins_depot_piece DP,
+	schema_pilotage.ins_demande_piece RDP,
+	schema_pilotage.ins_inscription IEC
+    WHERE RDP.code_metier = DP.code_metier
+    AND DP.id_inscription::varchar = IEC.id
+    
+    GROUP BY 
+        DP.id,
+        DP.id_inscription,
+        DP.code_metier,
+        RDP.libelle_affichage,
+        DP.temoin_obligatoire,
+        DP.temoin_photo,
+        DP.statut
+    
+	ORDER BY DP.id_inscription,DP.code_metier;
+
+
+ALTER TABLE schema_pilotage.ins_inscription_pieces ADD PRIMARY KEY (id, id_inscription);  
+CREATE INDEX ins_inscription_pieces_id_inscription_idx ON schema_pilotage.ins_inscription_pieces (id_inscription);  
+
+
+
 
 
 
