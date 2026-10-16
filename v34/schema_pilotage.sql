@@ -2138,6 +2138,7 @@ create table schema_pilotage.piste_apprenant (
     prenom varchar,
     prenom2 varchar,
     prenom3 varchar,
+    prenom_usage varchar,
     sexe varchar,
     date_naissance date,
     code_pays_naissance varchar,
@@ -2194,6 +2195,7 @@ set
     prenom = source_json->'apprenant'->'etatCivil'->'prenom'->>'value',
     prenom2 = source_json->'apprenant'->'etatCivil'->'deuxiemePrenom'->>'value',
     prenom3 = source_json->'apprenant'->'etatCivil'->'troisiemePrenom'->>'value',
+    prenom_usage = source_json->'apprenant'->'etatCivil'->'prenomUsage'->>'value',
     sexe = source_json->'apprenant'->'etatCivil'->>'genre',
     date_naissance = CASE  
 		WHEN (source_json->'apprenant'->'etatCivil'->'dateDeNaissance'->'value'->>'$date') LIKE '%numberLong%' THEN NULL::date
@@ -2888,6 +2890,7 @@ CREATE TABLE schema_pilotage.idt_apprenant AS
     clean_string(IDT.prenom) AS "prenom",
     clean_string(APP.prenom2) AS "prenom2",
     clean_string(APP.prenom3) AS "prenom3",
+    clean_string(APP.prenom_usage) AS "prenom_usage",
     APP.sexe AS "sexe",
     APP.date_naissance,
     APP.code_pays_naissance,
@@ -3275,6 +3278,7 @@ CREATE TABLE schema_pilotage.ins_admis AS
 	APP.prenom,
 	APP.prenom2,
 	APP.prenom3,
+	APP.prenom_usage,
 	APP.sexe,
 	APP.date_naissance,
 	APP.code_pays_naissance,
