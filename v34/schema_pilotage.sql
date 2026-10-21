@@ -3830,6 +3830,8 @@ CREATE TABLE schema_pilotage.pai_facture AS
     F.quittance_numero,
     F.quittance_date_generation,
     F.quittance_date_cloture,
+    NULL::numeric(9,2) AS "montant_charge",
+    NULL::numeric(9,2) AS "montantapayer_apres_exo",
     OOFC.id AS "id_objet_formation_chemin",
     OOFC.code_objet_formation AS "code_objet_formation",
     OOFC.libelle_court_objet_formation AS "libelle_objet_formation",
@@ -3851,8 +3853,8 @@ CREATE TABLE schema_pilotage.pai_facture AS
 
 
 CREATE TABLE schema_pilotage.pai_ligne_facture AS
- SELECT LF.id,
-    LF.id_facture,
+ SELECT LF.id::varchar,
+    LF.id_facture::varchar,
     EDD.code_periode,
     F.id_structure_budgetaire,
     LF.temoin_annulation,
@@ -3881,7 +3883,22 @@ CREATE TABLE schema_pilotage.pai_ligne_facture AS
    
    
    
+
+UPDATE schema_pilotage.pai_facture AS F
+SET
+    montant_charge = COALESCE(LF.montant_charge_total, 0),
+    montantapayer_apres_exo = COALESCE(LF.montantapayer_apres_exo_total, 0)
+FROM (
+    SELECT
+        id_facture,
+        SUM(montant_charge) AS montant_charge_total,
+        SUM(montantapayer_apres_exo) AS montantapayer_apres_exo_total
+    FROM schema_pilotage.pai_ligne_facture
+    GROUP BY id_facture
+) AS LF
+WHERE F.id = LF.id_facture;
    
+
 
 
 CREATE TABLE schema_pilotage.pai_formation_tarification AS
