@@ -3219,7 +3219,7 @@ CREATE TABLE schema_pilotage.ins_piece_demandee AS
 FROM schema_piece.piece_demandee
 
 LEFT JOIN schema_pilotage.ins_demande_piece ON ins_demande_piece.id = piece_demandee.id_demande_piece
-LEFT JOIN schema_piece.chemin ON chemin.id = piece_demandee.id_odf_chemin
+LEFT JOIN schema_piece.chemin ON chemin.id_odf = piece_demandee.id_odf_chemin
 LEFT JOIN schema_pilotage.odf_objet_formation_chemin ON odf_objet_formation_chemin.chemin = chemin.code_chemin AND odf_objet_formation_chemin.code_periode = ins_demande_piece.code_periode
 LEFT JOIN schema_pilotage.idt_apprenant ON idt_apprenant.id = piece_demandee.id_apprenant::varchar
 LEFT JOIN schema_ins.inscription ON odf_objet_formation_chemin.id = inscription.id_odf_chemin AND idt_apprenant.id = inscription.id_apprenant::varchar
