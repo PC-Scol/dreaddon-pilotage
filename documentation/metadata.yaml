@@ -1,6 +1,33 @@
 # -*- coding: utf-8 mode: yaml -*- vim:sw=2:sts=2:et:ai:si:sta:fenc=utf-8
 
 files:
+  Univers_DRE_v3.3.34.1.lcmbiar:
+    title: Univers BO (dernière version)
+    desc: |
+      Si vous avez des problèmes pour requêter certaines données avec une erreur
+      de la forme "character with byte sequence ... in encoding UTF-8 has no
+      equivalent in encoding WIN1252", vérifiez le driver PostgreSQL que vous
+      avez sélectionné.
+
+      Le développeur signale """
+      L'utilisation de la version Unicode(x64) du driver PostgreSQL permet
+      d'afficher tous les caractères contenus dans certaines données
+      (Lib. Etablissement étranger par exemple).
+      """
+
+  Univers_DRE_v3.3.31.4.lcmbiar:
+    title: Univers BO
+    desc: |
+      Cette version ajout les objets suivants:
+      * Apprenants / Liste Ines Complete
+      * Apprenants / Contacts / Mail / Mail Institutionnel
+      * Offre de formation / Code Structure Porteuse
+      * Offre de formation / Code Structure Porteuse Calcule
+      * Offre de formation / Id Formation Porteuse Calcule
+      * Offre de formation / Temoin Valide
+      * Offre de formation / Diplome / Diplome Grade
+      * Offre de formation / Diplome / Diplome Temoin Diplome Intermediaire
+    
   Univers_DRE_v3.3.28.2.lcmbiar:
     title: Univers BO
     desc: |
