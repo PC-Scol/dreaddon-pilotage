@@ -7,10 +7,13 @@ files:
       Si vous avez des problèmes pour requêter certaines données avec une erreur
       de la forme "character with byte sequence ... in encoding UTF-8 has no
       equivalent in encoding WIN1252", vérifiez le driver PostgreSQL que vous
-      avez sélectionné. Le développeur de cet univers précise:
-      > L'utilisation de la version Unicode(x64) du driver PostgreSQL permet
-      > d'afficher tous les caractères contenus dans certaines données
-      > (Lib. Etablissement étranger par exemple).
+      avez sélectionné.
+
+      Le développeur signale """
+      L'utilisation de la version Unicode(x64) du driver PostgreSQL permet
+      d'afficher tous les caractères contenus dans certaines données
+      (Lib. Etablissement étranger par exemple).
+      """
 
   Univers_DRE_v3.3.31.4.lcmbiar:
     title: Univers BO
