@@ -4083,8 +4083,14 @@ SELECT
     DE.note_finale,
     DE.etat_note_finale,
     DE.resultat,
+	RTR.libelle_court AS "libelle_court_resultat",
+	RTR.libelle_long AS "libelle_long_resultat",
+	RTR.libelle_affichage AS "libelle_affichage_resultat",
     DE.etat_resultat,
     DE.mention,
+	RMH.libelle_court AS "libelle_court_mention",
+	RMH.libelle_long AS "libelle_long_mention",
+	RMH.libelle_affichage AS "libelle_affichage_mention",
     DE.etat_mention,
     DE.rang,
     DE.etat_rang,
@@ -4093,9 +4099,11 @@ SELECT
     DE.gpa,
     DE.etat_gpa,
     DE.date_deliberation
-FROM schema_coc.diplome_evaluation DE,
-schema_coc.apprenant CAPP
-WHERE CAPP.id = DE.id_apprenant;
+FROM schema_coc.diplome_evaluation DE
+
+LEFT JOIN schema_coc.apprenant CAPP ON CAPP.id = DE.id_apprenant
+LEFT JOIN schema_pilotage.ref_mention_honorifique RMH ON RMH.code_metier = DE.mention
+LEFT JOIN schema_pilotage.ref_type_resultat RTR ON RTR.code_metier = DE.resultat;
 
 
 
@@ -4165,16 +4173,19 @@ LEFT JOIN schema_coc.diplome D ON D.id = AD.id_diplome
 LEFT JOIN schema_coc.periode P ON P.id = D.id_periode
 LEFT JOIN schema_coc.apprenant CA ON CA.id = AD.id_apprenant
 LEFT JOIN schema_pilotage.idt_apprenant APP ON APP.id = CA.uuid::varchar
+LEFT JOIN schema_coc.diplome_lien_objet_maquette DLOM ON DLOM.id_diplome = D.id
+JOIN schema_pilotage.ins_inscription INS ON INS.id_apprenant = APP.id AND INS.code_objet_formation = DLOM.code_objet_maquette AND INS.code_periode = P.code
 LEFT JOIN schema_pilotage.coc_diplome_evaluation CDE ON CDE.id_diplome = D.id AND CDE.id_apprenant = CA.uuid::varchar
 LEFT JOIN schema_pilotage.ref_mention_honorifique RMH ON RMH.code_metier = CDE.mention
 
 LEFT JOIN schema_pilotage.ref_finalite_formation RFF ON RFF.code_metier = D.type_finalite_formation_code
-LEFT JOIN schema_coc.diplome_lien_objet_maquette DLOM ON DLOM.id_diplome = D.id
 LEFT JOIN schema_coc.apprenant_diplome_parchemin PAR ON PAR.id_apprenant_diplome = AD.id
 LEFT JOIN schema_coc.diplome_modele_parchemin_asso PPAR ON PPAR.id_diplome = D.id
 LEFT JOIN schema_coc.modele M ON M.id = PPAR.id_modele_parchemin
 LEFT JOIN schema_coc.modele_parchemin MP ON MP.id = PPAR.id_modele_parchemin
 LEFT JOIN schema_coc.apprenant_diplome_parchemin_sauvegarde ADPS ON M.id = PAR.id_apprenant_diplome_parchemin_sauvegarde
+
+--WHERE D.id='5984' AND CA.id = '5605'
 
 GROUP BY AD.id, APP.id,APP.code_apprenant,P.code,P.libelle_long,
 --DLOM.code_objet_maquette,
